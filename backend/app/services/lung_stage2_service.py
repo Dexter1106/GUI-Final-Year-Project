@@ -2,7 +2,8 @@ import joblib
 import pandas as pd
 import numpy as np
 import json
-from pathlib import Path  # ✅ FIX ADDED
+from pathlib import Path  
+from app.utils.tooltip_formatter import format_confidence_tooltip
 
 # ================= PATH SETUP =================
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -29,9 +30,12 @@ def predict_stage2(input_data: dict):
     confidence = float(np.max(probabilities))
 
     probability_breakdown = {
-        f"GOLD_{i+1}": float(probabilities[i])
-        for i in range(len(probabilities))
-    }
+    f"GOLD_{i+1}": format_confidence_tooltip(
+        f"GOLD_{i+1}",
+        float(probabilities[i])
+    )
+    for i in range(len(probabilities))
+}
 
     return {
         "gold_stage": int(prediction),

@@ -2,6 +2,7 @@ import joblib
 import pandas as pd
 import numpy as np
 from app.utils.enose_feature_extraction import extract_enose_features
+from app.utils.tooltip_formatter import format_confidence_tooltip
 
 from pathlib import Path
 
@@ -33,9 +34,12 @@ def predict_stage1(file):
     confidence = float(np.max(probabilities))
 
     probability_breakdown = {
-        label_map[i]: float(probabilities[i])
-        for i in range(len(probabilities))
-    }
+    label_map[i]: format_confidence_tooltip(
+        label_map[i],
+        float(probabilities[i])
+    )
+    for i in range(len(probabilities))
+}
 
     return {
         "prediction": label_map[prediction],
