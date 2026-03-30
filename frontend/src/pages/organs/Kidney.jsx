@@ -11,6 +11,7 @@ import { Activity, HeartPulse, Brain, Info } from "lucide-react";
 import axiosInstance from "../../api/axiosInstance";
 import Navbar from "../../components/Navbar";
 
+
 /* ─────────────────────────────────────────────
    GLOBAL STYLES  (injected once via <style> tag)
 ───────────────────────────────────────────── */
@@ -501,6 +502,7 @@ const GLOBAL_CSS = `
 /* ─────────────────────────────────────────────
    FEATURE DATA
 ───────────────────────────────────────────── */
+
 const FEATURE_PRIORITY = {
   gfr: "high", serum_creatinine: "high", bun: "high",
   serum_calcium: "high", c3_c4: "high", oxalate_levels: "high",
@@ -712,6 +714,7 @@ function Kidney() {
 
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   function handleChange(e) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -755,6 +758,61 @@ function Kidney() {
       setLoading(false);
     }
   }
+  async function handleDownloadReport() {
+  try {
+    setPdfLoading(true);
+
+    const payload = {
+      patient: {
+        name: "Test Patient",
+        age: 25,
+        gender: "Male",
+        id: "P001"
+      },
+      features: {
+        serum_creatinine: toNumber(formData.serum_creatinine),
+        gfr: toNumber(formData.gfr),
+        bun: toNumber(formData.bun),
+        serum_calcium: toNumber(formData.serum_calcium),
+        c3_c4: toNumber(formData.c3_c4),
+        oxalate_levels: toNumber(formData.oxalate_levels),
+        urine_ph: toNumber(formData.urine_ph),
+        blood_pressure: toNumber(formData.blood_pressure),
+        water_intake: toNumber(formData.water_intake),
+        months: toNumber(formData.months),
+        ana: yesNoToBinary(formData.ana),
+        hematuria: yesNoToBinary(formData.hematuria),
+        painkiller_usage: yesNoToBinary(formData.painkiller_usage),
+        family_history: yesNoToBinary(formData.family_history),
+        physical_activity: formData.physical_activity,
+        diet: formData.diet,
+        smoking: formData.smoking,
+        alcohol: formData.alcohol,
+        weight_changes: formData.weight_changes,
+        stress_level: formData.stress_level,
+      }
+    };
+
+    const response = await axiosInstance.post(
+      "/kidney/predict-report",
+      payload,
+      { responseType: "blob" }
+    );
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "kidney_report.pdf");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+  } catch (error) {
+    alert("PDF generation failed");
+  } finally {
+    setPdfLoading(false);
+  }
+}
 
   const critLevel = result?.criticality?.toLowerCase() || "";
   const critTier = critLevel.includes("high") ? "high"
@@ -903,8 +961,12 @@ function Kidney() {
               >
                 <div className="kd-result-title">
                   Prediction Result
-                  <span className="kd-crit-badge" style={critBadgeStyle}>{result.criticality}</span>
+                  <span className="kd-crit-badge" style={critBadgeStyle}>
+                    {result.criticality}
+                  </span>
                 </div>
+
+                {/* RESULT GRID */}
                 <div className="kd-result-grid">
                   <div>
                     <div className="kd-result-key">Disease</div>
@@ -916,9 +978,30 @@ function Kidney() {
                   </div>
                   <div>
                     <div className="kd-result-key">Confidence</div>
-                    <div className="kd-result-val">{result.confidence ?? "N/A"}</div>
+                    <div className="kd-result-val">
+                      {result.confidence ?? "N/A"}
+                    </div>
                   </div>
                 </div>
+
+                {/* 🔥 DOWNLOAD BUTTON (FIXED POSITION) */}
+                <div style={{ marginTop: 20 }}>
+                  <button
+                    onClick={handleDownloadReport}
+                    disabled={pdfLoading}
+                    className="kd-submit"
+                    style={{ fontSize: "0.8rem", padding: "10px" }}
+                  >
+                    {pdfLoading ? (
+                      <>
+                        <span className="kd-spinner" /> Generating Report...
+                      </>
+                    ) : (
+                      "Download Full Clinical Report (PDF)"
+                    )}
+                  </button>
+                </div>
+
               </motion.div>
             )}
           </AnimatePresence>
