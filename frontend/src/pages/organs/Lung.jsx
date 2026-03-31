@@ -2,10 +2,7 @@
 //
 // File Name : Lung.jsx
 // Description : COPD Two-Stage AI — Medical Dashboard (Light Theme)
-// Author      : Pradhumnya Changdev Kalsait
-// Date        : 27/02/26
-// Design Ref  : OnlyLiver topology — JetBrains Mono + Syne, card strips,
-//               badge chips, stat bars — adapted for clinical light theme
+//               + Inline jsPDF Report Generation (mirrors Kidney.jsx)
 ////////////////////////////////////////////////////////////////////
 
 import { useState } from "react";
@@ -17,6 +14,8 @@ import {
 } from "lucide-react";
 import axiosInstance from "../../api/axiosInstance";
 import Navbar from "../../components/Navbar";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 /* ═══════════════════════════════════════════════════════════════
    CLINICAL FIELD META  (GOLD 2024 + Kaggle dataset reference)
@@ -39,6 +38,7 @@ const FIELD_META = {
       alert: "≥ 2 = high burden; ≥ 3 = severe disability",
       ref: "GOLD 2024, Table 2.5",
     },
+    range: "0 – 4",
   },
   "Respiratory Rate": {
     level: "critical",
@@ -50,6 +50,7 @@ const FIELD_META = {
       alert: "> 30 br/min = severe exacerbation → consider ICU / NIV",
       ref: "GOLD 2024, §5.3",
     },
+    range: "12–20 br/min",
   },
   "Oxygen Saturation": {
     level: "critical",
@@ -61,6 +62,7 @@ const FIELD_META = {
       alert: "< 88 % = O₂ indicated;  < 85 % = acute respiratory failure",
       ref: "GOLD 2024, §5.3",
     },
+    range: "88–92 % (COPD)",
   },
   "Temperature": {
     level: "key",
@@ -72,6 +74,7 @@ const FIELD_META = {
       alert: "> 38.0 °C = suspected infection → antibiotic course",
       ref: "GOLD 2024, §5.1",
     },
+    range: "36.1–37.2 °C",
   },
   "working place": {
     level: "key",
@@ -87,6 +90,7 @@ const FIELD_META = {
       alert: "Industrial → accelerated FEV₁ decline",
       ref: "GOLD 2024, §1.3",
     },
+    range: "Industrial / Non-Industrial",
   },
   "Heart Rate": {
     level: "key",
@@ -98,6 +102,7 @@ const FIELD_META = {
       alert: "> 110 bpm at rest = cardiorespiratory stress",
       ref: "GOLD 2024, §5.1",
     },
+    range: "60–100 bpm",
   },
   "Blood pressure": {
     level: "key",
@@ -109,6 +114,7 @@ const FIELD_META = {
       alert: "< 90 = circulatory collapse;  > 180 = hypertensive urgency",
       ref: "GOLD 2024, §5.6",
     },
+    range: "90–139 mmHg",
   },
   "Age": {
     level: "supporting",
@@ -120,6 +126,7 @@ const FIELD_META = {
       alert: "> 65 = higher exacerbation & mortality risk",
       ref: "GOLD 2024, §1.3",
     },
+    range: "18–100 yrs",
   },
   "BMI, kg/m2": {
     level: "supporting",
@@ -131,6 +138,7 @@ const FIELD_META = {
       alert: "< 21 = nutritional risk;  > 30 = reduced exercise capacity",
       ref: "GOLD 2024, §4.2",
     },
+    range: "18.5–24.9 kg/m²",
   },
   "Pack History": {
     level: "supporting",
@@ -142,6 +150,7 @@ const FIELD_META = {
       alert: "> 10 = significant risk;  > 30 = high COPD probability",
       ref: "GOLD 2024, §1.3",
     },
+    range: "0 pack-yrs (ideal)",
   },
   "status of smoking": {
     level: "supporting",
@@ -157,6 +166,7 @@ const FIELD_META = {
       alert: "Active smoker ≈ 50 mL/yr additional FEV₁ loss",
       ref: "GOLD 2024, §3.1",
     },
+    range: "Current / Non-Smoker",
   },
   "Gender": {
     level: "supporting",
@@ -169,6 +179,7 @@ const FIELD_META = {
       alert: "Females may be under-diagnosed despite equal severity",
       ref: "GOLD 2024, §1.3",
     },
+    range: "Male / Female",
   },
   "Depression": {
     level: "supporting",
@@ -181,6 +192,7 @@ const FIELD_META = {
       alert: "Present → screen with PHQ-9",
       ref: "GOLD 2024, §5.6",
     },
+    range: "Yes / No",
   },
   "History of Heart Failure": {
     level: "supporting",
@@ -193,6 +205,7 @@ const FIELD_META = {
       alert: "Present → screen for cor pulmonale; consider diuretics",
       ref: "GOLD 2024, §5.6",
     },
+    range: "Yes / No",
   },
   "Sputum": {
     level: "supporting",
@@ -208,6 +221,7 @@ const FIELD_META = {
       alert: "Purulent → 5–7 day antibiotic course",
       ref: "GOLD 2024, §5.2",
     },
+    range: "Yes / No",
   },
   "Vaccination": {
     level: "supporting",
@@ -220,6 +234,7 @@ const FIELD_META = {
       alert: "Unvaccinated → higher exacerbation & mortality risk",
       ref: "GOLD 2024, Table 3.2",
     },
+    range: "Vaccinated / Not Vaccinated",
   },
   "Dependent": {
     level: "supporting",
@@ -235,6 +250,7 @@ const FIELD_META = {
       alert: "Dependent → consider pulmonary rehab & social support",
       ref: "Dataset: functional assessment",
     },
+    range: "Dependent / Independent",
   },
   "Height/m": {
     level: "supporting",
@@ -246,14 +262,12 @@ const FIELD_META = {
       alert: "—",
       ref: "Dataset: anthropometric variable",
     },
+    range: "1.50–1.90 m",
   },
 };
 
 /* ═══════════════════════════════════════════════════
-   LEVEL → VISUAL CONFIG  (mirrors topology.html card colors)
-   critical = red accent  (like cirrhosis in topology)
-   key      = amber accent (like fibrosis)
-   supporting = blue accent (like entry layer)
+   LEVEL → VISUAL CONFIG
 ═══════════════════════════════════════════════════ */
 const LEVEL_CFG = {
   critical: {
@@ -291,8 +305,6 @@ const LEVEL_CFG = {
 /* ═══════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════ */
-
-// FIX: parseFloat("") === NaN — never send NaN to the backend
 const safeParseFloat = (str) => {
   const t = String(str).trim();
   if (!t) return undefined;
@@ -333,6 +345,243 @@ const riskOf = (confidence) => {
   };
 };
 
+/* helper to get a readable label for select fields from numeric value */
+const getSelectLabel = (fieldName, value) => {
+  const meta = FIELD_META[fieldName];
+  if (!meta || meta.type !== "select") return value !== undefined ? String(value) : "N/A";
+  const found = meta.options?.find((o) => String(o.value) === String(value));
+  return found ? found.label : (value !== undefined ? String(value) : "N/A");
+};
+
+/* ═══════════════════════════════════════════════════
+   PDF GENERATION  (mirrors Kidney.jsx structure)
+═══════════════════════════════════════════════════ */
+function generatePDF(clinicalData, stage1Result, stage2Result) {
+  const doc = new jsPDF();
+
+  const primary   = [13, 148, 136];   // teal-600 — lung theme
+  const lightGray = [240, 240, 240];
+  const dark      = [40, 40, 40];
+
+  const pageHeight = doc.internal.pageSize.height;
+  const pageWidth  = doc.internal.pageSize.width;
+
+  // ── HEADER (reusable, called on every new page) ──
+  const addHeader = () => {
+    doc.setFillColor(...primary);
+    doc.rect(0, 0, pageWidth, 25, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text("OnlyLung AI Diagnostic Report", 14, 15);
+
+    doc.setFontSize(9);
+    doc.text("AI-Powered COPD Two-Stage Prediction System · GOLD 2024", 14, 21);
+
+    doc.setTextColor(...dark);
+  };
+
+  // ── FOOTER ──
+  const addFooter = () => {
+    doc.setDrawColor(200);
+    doc.line(14, pageHeight - 15, pageWidth - 14, pageHeight - 15);
+
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      "Disclaimer: This report is AI-generated and should not be considered a medical diagnosis.",
+      14,
+      pageHeight - 10
+    );
+    doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 30, pageHeight - 5);
+  };
+
+  // ── PAGE 1 HEADER ──
+  addHeader();
+
+  // ── GENERAL INFORMATION ──
+  let y = 35;
+
+  doc.setFontSize(12);
+  doc.setTextColor(...primary);
+  doc.text("General Information", 14, y);
+  doc.setDrawColor(...primary);
+  doc.line(14, y + 2, pageWidth - 14, y + 2);
+
+  doc.setTextColor(...dark);
+  doc.setFontSize(10);
+
+  y += 10;
+  doc.text(`Date        : ${new Date().toLocaleDateString()}`, 14, y);
+  y += 6;
+  doc.text(`Report Type : COPD AI Two-Stage Prediction`, 14, y);
+  y += 6;
+  doc.text(`Pipeline    : Stage 1 (Breath Acoustics) → Stage 2 (Clinical Severity)`, 14, y);
+
+  // ── STAGE 1 RESULT SUMMARY BOX ──
+  y += 12;
+  doc.setFontSize(12);
+  doc.setTextColor(...primary);
+  doc.text("Stage 1 — Breath Acoustics Screening", 14, y);
+  doc.line(14, y + 2, pageWidth - 14, y + 2);
+
+  y += 8;
+  if (stage1Result) {
+    doc.setDrawColor(...primary);
+    doc.rect(14, y, pageWidth - 28, 28);
+
+    doc.setFontSize(10);
+    doc.setTextColor(...dark);
+    doc.text(`Prediction  : ${stage1Result.prediction ?? "N/A"}`, 18, y + 8);
+    doc.text(`Confidence  : ${fmt(stage1Result.confidence)}%`, 18, y + 15);
+
+    if (stage1Result.probabilities) {
+      const entries = Object.entries(stage1Result.probabilities);
+      const probStr = entries.map(([k, v]) => `${k}: ${fmt(v)}%`).join("   |   ");
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      doc.text(`Probabilities : ${probStr}`, 18, y + 22);
+    }
+
+    y += 36;
+  } else {
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text("Stage 1 result not available.", 18, y + 6);
+    y += 18;
+  }
+
+  // ── CLINICAL PARAMETERS TABLE ──
+  doc.setFontSize(12);
+  doc.setTextColor(...primary);
+  doc.text("Stage 2 — Clinical Parameters", 14, y);
+
+  const grouped = {
+    critical:   Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "critical"),
+    key:        Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "key"),
+    supporting: Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "supporting"),
+  };
+
+  // Build rows grouped by level with section separators
+  const tableBody = [];
+
+  const LEVEL_ROWS = [
+    { key: "critical",   header: "🔴 CRITICAL PARAMETERS", color: [239, 68, 68] },
+    { key: "key",        header: "🟡 KEY PARAMETERS",      color: [245, 158, 11] },
+    { key: "supporting", header: "🔵 SUPPORTING PARAMETERS", color: [59, 130, 246] },
+  ];
+
+  for (const { key, header, color } of LEVEL_ROWS) {
+    tableBody.push([{ content: header, colSpan: 3, styles: { fillColor: color, textColor: 255, fontStyle: "bold", fontSize: 8 } }]);
+    for (const fieldKey of grouped[key]) {
+      const meta      = FIELD_META[fieldKey];
+      const rawVal    = clinicalData[fieldKey];
+      const displayed = meta.type === "select"
+        ? getSelectLabel(fieldKey, rawVal)
+        : (rawVal !== undefined && rawVal !== null ? String(rawVal) + (meta.unit ? ` ${meta.unit}` : "") : "N/A");
+
+      tableBody.push([
+        meta.label,
+        displayed || "N/A",
+        meta.range || "—",
+      ]);
+    }
+  }
+
+  autoTable(doc, {
+    startY: y + 4,
+    head: [["Parameter", "Observed Value", "Normal Range"]],
+    body: tableBody,
+    theme: "grid",
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: primary, textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: lightGray },
+    didDrawPage: () => { addHeader(); },
+  });
+
+  let finalY = doc.lastAutoTable.finalY + 10;
+
+  // ── PAGE BREAK HELPER ──
+  const checkPageBreak = (needed) => {
+    if (finalY + needed > pageHeight - 20) {
+      doc.addPage();
+      addHeader();
+      finalY = 35;
+    }
+  };
+
+  // ── STAGE 2 PREDICTION SUMMARY BOX ──
+  checkPageBreak(55);
+
+  doc.setDrawColor(...primary);
+  doc.rect(14, finalY, pageWidth - 28, 50);
+
+  doc.setFontSize(12);
+  doc.setTextColor(...primary);
+  doc.text("Stage 2 — AI Severity Prediction Summary", 18, finalY + 9);
+
+  doc.setFontSize(10);
+  doc.setTextColor(...dark);
+
+  if (stage2Result) {
+    doc.text(`GOLD Stage   : GOLD ${stage2Result.gold_stage ?? "N/A"}`, 18, finalY + 18);
+    doc.text(`Risk Level   : ${stage2Result.gold_stage
+      ? (Number(stage2Result.gold_stage) >= 3 ? "High Risk" : Number(stage2Result.gold_stage) === 2 ? "Moderate Risk" : "Low Risk")
+      : "N/A"}`, 18, finalY + 25);
+    doc.text(`Confidence   : ${fmt(stage2Result.confidence)}%`, 18, finalY + 32);
+
+    if (stage2Result.probabilities) {
+      const entries = Object.entries(stage2Result.probabilities);
+      const probStr = entries.map(([k, v]) => `${k}: ${fmt(v)}%`).join("   |   ");
+      doc.setFontSize(8.5);
+      doc.setTextColor(80);
+      doc.text(`Probabilities : ${probStr}`, 18, finalY + 41);
+    }
+  } else {
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text("Stage 2 result not available (COPD not detected in Stage 1).", 18, finalY + 22);
+  }
+
+  finalY += 60;
+
+  // ── CLINICAL INTERPRETATION NOTES ──
+  checkPageBreak(40);
+
+  doc.setFontSize(11);
+  doc.setTextColor(...primary);
+  doc.text("Clinical Interpretation Notes", 14, finalY);
+  doc.line(14, finalY + 2, pageWidth - 14, finalY + 2);
+
+  doc.setFontSize(9);
+  doc.setTextColor(80);
+
+  const notes = [
+    "• mMRC ≥ 2 indicates high symptom burden — GOLD Groups B/E classification applies.",
+    "• SpO₂ < 88% → supplemental oxygen therapy indicated (GOLD 2024, §5.3).",
+    "• Respiratory Rate > 30 br/min → consider ICU evaluation / non-invasive ventilation.",
+    "• Purulent sputum → Anthonisen criterion met → 5–7 day antibiotic course recommended.",
+    "• Low BMI (< 21 kg/m²) independently predicts increased mortality in COPD.",
+    "• Influenza vaccination reduces hospitalization risk (Evidence B, GOLD 2024).",
+  ];
+
+  finalY += 8;
+  for (const note of notes) {
+    checkPageBreak(8);
+    doc.text(note, 18, finalY);
+    finalY += 7;
+  }
+
+  // ── FOOTERS ON ALL PAGES ──
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    addFooter();
+  }
+
+  doc.save("OnlyLung_COPD_Report.pdf");
+}
+
 /* ═══════════════════════════════════════════════════
    FIELD INPUT COMPONENT
 ═══════════════════════════════════════════════════ */
@@ -352,7 +601,6 @@ const FieldInput = ({ name, onChange }) => {
 
   return (
     <div className="relative group">
-      {/* Colored left-border accent strip (topology card style) */}
       <div className={`absolute left-0 top-0 bottom-0 w-0.5 rounded-l-lg ${cfg.strip}`} />
 
       <div className={`pl-2.5 rounded-lg border ${
@@ -360,7 +608,6 @@ const FieldInput = ({ name, onChange }) => {
         : meta.level === "key"    ? "border-amber-100 bg-amber-50/40"
         : "border-blue-100 bg-blue-50/30"
       }`}>
-        {/* Label row */}
         <div className="flex items-center justify-between px-1 pt-1.5 pb-0.5">
           <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.headerTxt}`}>
             {meta.label}
@@ -370,7 +617,6 @@ const FieldInput = ({ name, onChange }) => {
           </span>
         </div>
 
-        {/* Input */}
         {meta.type === "select" ? (
           <select name={name} required onChange={onChange} defaultValue=""
             className={`${inputCls} mb-1.5 border-0 bg-transparent focus:bg-white`}>
@@ -402,18 +648,14 @@ const FieldInput = ({ name, onChange }) => {
                       bg-white border border-slate-200 shadow-xl rounded-xl
                       text-slate-700 text-xs p-4 top-full left-0 mt-1 w-72 pointer-events-none"
            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-        {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <span className="font-bold text-slate-900 text-sm">{meta.label}</span>
           <span className={`text-xs px-1.5 py-0.5 rounded border font-semibold ${cfg.tagBg}`}>
             {cfg.label}
           </span>
         </div>
-        {/* Colored top strip on tooltip (topology style) */}
         <div className={`absolute top-0 left-0 right-0 h-0.5 rounded-t-xl ${cfg.strip}`} />
-
         <p className="text-slate-600 leading-relaxed mb-3 text-xs">{meta.tooltip.why}</p>
-
         <div className="space-y-1.5 pt-2 border-t border-slate-100">
           <div className="flex gap-2 text-xs">
             <span className="text-slate-400 w-14 flex-shrink-0">Normal</span>
@@ -435,7 +677,6 @@ const FieldInput = ({ name, onChange }) => {
 
 /* ═══════════════════════════════════════════════════
    TOPOLOGY-STYLE CARD
-   — white surface, subtle border, colored top strip
 ═══════════════════════════════════════════════════ */
 const Card = ({ children, className = "", accentColor = "bg-teal-500" }) => (
   <div className={`relative bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden ${className}`}>
@@ -444,20 +685,16 @@ const Card = ({ children, className = "", accentColor = "bg-teal-500" }) => (
   </div>
 );
 
-/* Topology-style section label (vertical layer label adapted to horizontal) */
 const LayerLabel = ({ step, color = "text-slate-400", children }) => (
   <div className="flex items-center gap-3 mb-5">
     <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 ${color.replace("text-","border-")}
                      flex items-center justify-center font-bold text-xs font-mono ${color}`}>
       {step}
     </div>
-    <div className="flex flex-col">
-      {children}
-    </div>
+    <div className="flex flex-col">{children}</div>
   </div>
 );
 
-/* Topology-style section group header */
 const GroupHeader = ({ level, label, count }) => {
   const cfg = LEVEL_CFG[level];
   return (
@@ -472,17 +709,6 @@ const GroupHeader = ({ level, label, count }) => {
     </div>
   );
 };
-
-/* Topology stat bar item */
-const StatItem = ({ value, unit, label, color = "text-teal-600" }) => (
-  <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 flex flex-col gap-1">
-    <div className={`font-bold text-xl leading-none ${color}`}
-         style={{ fontFamily: "'Syne', sans-serif" }}>
-      {value}<span className="text-sm text-slate-400 font-normal ml-0.5">{unit}</span>
-    </div>
-    <div className="text-xs text-slate-400 uppercase tracking-wide font-medium">{label}</div>
-  </div>
-);
 
 /* ═══════════════════════════════════════════════════
    MAIN COMPONENT
@@ -539,7 +765,7 @@ const Lungs = () => {
     }
   };
 
-  /* ── Stage 2 ── FIX: safeParseFloat prevents NaN from empty inputs */
+  /* ── Stage 2 ── */
   const handleClinicalChange = (e) => {
     const parsed = safeParseFloat(e.target.value);
     setClinicalData((prev) => ({ ...prev, [e.target.name]: parsed }));
@@ -561,23 +787,9 @@ const Lungs = () => {
     }
   };
 
-  /* ── PDF download ── */
-  const handleDownloadPDF = async () => {
-    try {
-      const res = await axiosInstance.post(
-        "/lung/report/pdf",
-        { stage1: stage1Result, stage2: stage2Result },
-        { responseType: "blob" }
-      );
-      const url  = window.URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
-      const link = document.createElement("a");
-      link.href     = url;
-      link.download = "COPD_AI_Report.pdf";
-      link.click();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      alert("PDF generation failed.");
-    }
+  /* ── Inline PDF (mirrors Kidney.jsx generatePDF pattern) ── */
+  const handleDownloadPDF = () => {
+    generatePDF(clinicalData, stage1Result, stage2Result);
   };
 
   const risk = stage2Result ? riskOf(stage2Result.confidence) : null;
@@ -589,12 +801,11 @@ const Lungs = () => {
   };
 
   return (
-    // Load topology fonts
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
-        .font-syne  { font-family: 'Syne', sans-serif; }
-        .font-mono-jb { font-family: 'JetBrains Mono', monospace; }
+        .font-syne     { font-family: 'Syne', sans-serif; }
+        .font-mono-jb  { font-family: 'JetBrains Mono', monospace; }
       `}</style>
 
       <div className="min-h-screen font-mono-jb" style={{
@@ -605,7 +816,7 @@ const Lungs = () => {
 
         <main className="max-w-5xl mx-auto px-4 py-10 space-y-5">
 
-          {/* ── PAGE HEADER (topology-style) ── */}
+          {/* ── PAGE HEADER ── */}
           <motion.div initial={{ opacity:0, y:-14 }} animate={{ opacity:1, y:0 }}>
             <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
               <div>
@@ -633,14 +844,6 @@ const Lungs = () => {
                 </span>
               </div>
             </div>
-
-            {/* Topology-style stat bar */}
-            {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-              <StatItem value="2"   unit=" stages"   label="AI Pipeline"       color="text-teal-600" />
-              <StatItem value="18"  unit=" fields"   label="Clinical Inputs"   color="text-blue-600" />
-              <StatItem value="230" unit=" patients" label="Training Dataset"  color="text-amber-600" />
-              <StatItem value="4"   unit=" classes"  label="GOLD Stages"       color="text-red-500" />
-            </div> */}
           </motion.div>
 
           {/* ── STAGE 1 ── */}
@@ -656,7 +859,6 @@ const Lungs = () => {
               </LayerLabel>
 
               <form onSubmit={handleStage1Submit}>
-                {/* Drop zone */}
                 <label
                   className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed
                                rounded-xl p-8 cursor-pointer select-none transition-all
@@ -779,7 +981,7 @@ const Lungs = () => {
                     </span>
                   </LayerLabel>
 
-                  {/* Legend (topology style) */}
+                  {/* Legend */}
                   <div className="flex flex-wrap items-center gap-2 mb-5 p-3 bg-slate-50 rounded-lg border border-slate-200">
                     {(["critical","key","supporting"]).map((lv) => (
                       <div key={lv} className="flex items-center gap-1.5">
@@ -903,16 +1105,29 @@ const Lungs = () => {
                     </div>
                   )}
 
-                  {/* PDF button */}
+                  {/* PDF download button — mirrors Kidney.jsx style */}
                   <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                     <span className="text-xs text-slate-400 italic">
                       Report generated via COPD AI · {new Date().toLocaleDateString("en-IN")}
                     </span>
-                    <button onClick={handleDownloadPDF}
-                      className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-900
-                                 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all">
+                    <button
+                      onClick={handleDownloadPDF}
+                      style={{
+                        padding: "10px 16px",
+                        borderRadius: "8px",
+                        border: "none",
+                        background: "#0d9488",
+                        color: "#fff",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        fontSize: "0.875rem",
+                      }}
+                    >
                       <Download size={14} />
-                      Download PDF Report
+                      Download Report PDF 📄
                     </button>
                   </div>
                 </Card>
