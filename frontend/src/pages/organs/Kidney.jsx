@@ -10,7 +10,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Activity, HeartPulse, Brain, Info } from "lucide-react";
 import axiosInstance from "../../api/axiosInstance";
 import Navbar from "../../components/Navbar";
-
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 /* ─────────────────────────────────────────────
    GLOBAL STYLES  (injected once via <style> tag)
@@ -502,8 +503,8 @@ const GLOBAL_CSS = `
 /* ─────────────────────────────────────────────
    FEATURE DATA
 ───────────────────────────────────────────── */
+const FEATURE_PRIORITY = {  age: "high", // ✅ ADD THIS
 
-const FEATURE_PRIORITY = {
   gfr: "high", serum_creatinine: "high", bun: "high",
   serum_calcium: "high", c3_c4: "high", oxalate_levels: "high",
   blood_pressure: "high", urine_ph: "high", water_intake: "high", months: "high",
@@ -536,6 +537,9 @@ const FEATURE_INFO = {
 };
 
 const BADGE_LABEL = { high: "Must Act", medium: "Allowed", low: "Optional" };
+
+//  Fuction for generate pdf
+
 
 /* ─────────────────────────────────────────────
    TOOLTIP KIT
@@ -703,7 +707,23 @@ function KdSection({ label, labelColor, icon, iconBg, title, countLabel, cardCla
 /* ─────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────── */
+const DEFAULT_VALUES = {
+  // LOW (optional)
+  physical_activity: "weekly",
+  diet: "balanced",
+  smoking: "no",
+  alcohol: "occasionally",
+  weight_changes: "stable",
+  stress_level: "moderate",
+
+  // MEDIUM (fallback if not selected)
+  ana: "no",
+  hematuria: "no",
+  painkiller_usage: "no",
+  family_history: "no",
+};
 function Kidney() {
+
   const [formData, setFormData] = useState({
     serum_creatinine: "", gfr: "", bun: "", serum_calcium: "",
     c3_c4: "", oxalate_levels: "", urine_ph: "", blood_pressure: "",
@@ -714,42 +734,220 @@ function Kidney() {
 
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
 
+
+
+function generatePDF() {
+  const doc = new jsPDF();
+
+  const primary = [41, 128, 185];
+  const lightGray = [240, 240, 240];
+  const dark = [40, 40, 40];
+
+  let pageHeight = doc.internal.pageSize.height;
+
+  // =========================
+  // 🏥 HEADER FUNCTION (Reusable)
+  // =========================
+  const addHeader = () => {
+    doc.setFillColor(...primary);
+    doc.rect(0, 0, 210, 25, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text("OnlyKidney AI Diagnostic Report", 14, 15);
+
+    doc.setFontSize(10);
+    doc.text("AI-Powered Kidney Disease Prediction System", 14, 21);
+
+    doc.setTextColor(...dark);
+  };
+
+  // =========================
+  // 📌 FOOTER FUNCTION
+  // =========================
+  const addFooter = () => {
+    doc.setDrawColor(200);
+    doc.line(14, pageHeight - 15, 196, pageHeight - 15);
+
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+
+    doc.text(
+      "Disclaimer: This report is AI-generated and should not be considered a medical diagnosis.",
+      14,
+      pageHeight - 10
+    );
+
+    doc.text(`Page ${doc.internal.getNumberOfPages()}`, 180, pageHeight - 5);
+  };
+
+  // First Page Header
+  addHeader();
+
+  // =========================
+  // 👤 BASIC INFO (Removed ID & Name)
+  // =========================
+  let y = 35;
+
+  doc.setFontSize(12);
+  doc.setTextColor(...primary);
+  doc.text("General Information", 14, y);
+
+  doc.line(14, y + 2, 196, y + 2);
+
+  doc.setTextColor(...dark);
+  doc.setFontSize(10);
+
+  y += 8;
+  doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, y);
+  doc.text(`Age: ${formData.age || "N/A"}`, 120, y);
+
+  // =========================
+  // 📊 TABLE (Auto Page Break)
+  // =========================
+  y += 10;
+
+  doc.setTextColor(...primary);
+  doc.setFontSize(12);
+  doc.text("Clinical Parameters", 14, y);
+
+  autoTable(doc, {
+    startY: y + 4,
+    head: [["Parameter", "Observed Value", "Normal Range"]],
+    body: Object.keys(FEATURE_INFO).map((key) => [
+      FEATURE_INFO[key].label,
+      formData[key] || DEFAULT_VALUES[key] || "N/A",
+      FEATURE_INFO[key].range || "N/A",
+    ]),
+    theme: "grid",
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+    },
+    headStyles: {
+      fillColor: primary,
+      textColor: 255,
+      fontStyle: "bold",
+    },
+    alternateRowStyles: {
+      fillColor: lightGray,
+    },
+
+    didDrawPage: function () {
+      addHeader(); // Header on each page
+    },
+  });
+
+  let finalY = doc.lastAutoTable.finalY + 10;
+
+  // =========================
+  // 🔄 PAGE BREAK CHECK FUNCTION
+  // =========================
+  const checkPageBreak = (requiredSpace) => {
+    if (finalY + requiredSpace > pageHeight - 20) {
+      doc.addPage();
+      addHeader();
+      finalY = 35;
+    }
+  };
+
+  // =========================
+  // 🧠 PREDICTION SUMMARY
+  // =========================
+  checkPageBreak(40);
+
+  doc.setDrawColor(...primary);
+  doc.rect(14, finalY, 182, 35);
+
+  doc.setFontSize(12);
+  doc.setTextColor(...primary);
+  doc.text("AI Prediction Summary", 18, finalY + 8);
+
+  doc.setFontSize(10);
+  doc.setTextColor(...dark);
+
+  doc.text(`Disease Status : ${result.disease}`, 18, finalY + 16);
+  doc.text(`Decision       : ${result.decision}`, 18, finalY + 22);
+  doc.text(`Risk Level     : ${result.criticality}`, 18, finalY + 28);
+  doc.text(`Confidence     : ${result.confidence || "N/A"}`, 110, finalY + 28);
+
+  finalY += 45;
+
+  
+
+  // =========================
+  // 📌 ADD FOOTER TO ALL PAGES
+  // =========================
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    addFooter();
+  }
+
+  // =========================
+  // 💾 SAVE
+  // =========================
+  doc.save("OnlyKidney_Report.pdf");
+}
   function handleChange(e) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   }
 
-  const toNumber = (val) => (val === "" ? null : Number(val));
-  const yesNoToBinary = (val) => (val === "yes" ? 1 : 0);
+  const toNumber = (val) => {
+  return val === "" ? null : Number(val); // HIGH fields handled separately
+};
+
+const yesNoToBinary = (val, key) => {
+  const finalVal = val || DEFAULT_VALUES[key];
+  return finalVal === "yes" ? 1 : 0;
+};
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setResult(null);
+    const HIGH_FIELDS = ["age",
+  "gfr", "serum_creatinine", "bun", "serum_calcium",
+  "c3_c4", "oxalate_levels", "urine_ph",
+  "blood_pressure", "water_intake", "months"
+];
+
+for (let field of HIGH_FIELDS) {
+  if (formData[field] === "") {
+    alert(`${FEATURE_INFO[field].label} is required (High Priority)`);
+    setLoading(false);
+    return;
+  }
+}
     try {
       const payload = {
-        serum_creatinine: toNumber(formData.serum_creatinine),
-        gfr: toNumber(formData.gfr),
-        bun: toNumber(formData.bun),
-        serum_calcium: toNumber(formData.serum_calcium),
-        c3_c4: toNumber(formData.c3_c4),
-        oxalate_levels: toNumber(formData.oxalate_levels),
-        urine_ph: toNumber(formData.urine_ph),
-        blood_pressure: toNumber(formData.blood_pressure),
-        water_intake: toNumber(formData.water_intake),
-        months: toNumber(formData.months),
-        ana: yesNoToBinary(formData.ana),
-        hematuria: yesNoToBinary(formData.hematuria),
-        painkiller_usage: yesNoToBinary(formData.painkiller_usage),
-        family_history: yesNoToBinary(formData.family_history),
-        physical_activity: formData.physical_activity,
-        diet: formData.diet,
-        smoking: formData.smoking,
-        alcohol: formData.alcohol,
-        weight_changes: formData.weight_changes,
-        stress_level: formData.stress_level,
-      };
+  // 🔴 HIGH → must exist (already validated)
+  serum_creatinine: toNumber(formData.serum_creatinine),
+  gfr: toNumber(formData.gfr),
+  bun: toNumber(formData.bun),
+  serum_calcium: toNumber(formData.serum_calcium),
+  c3_c4: toNumber(formData.c3_c4),
+  oxalate_levels: toNumber(formData.oxalate_levels),
+  urine_ph: toNumber(formData.urine_ph),
+  blood_pressure: toNumber(formData.blood_pressure),
+  water_intake: toNumber(formData.water_intake),
+  months: toNumber(formData.months),
+
+  // 🟡 MEDIUM → default if empty
+  ana: yesNoToBinary(formData.ana, "ana"),
+  hematuria: yesNoToBinary(formData.hematuria, "hematuria"),
+  painkiller_usage: yesNoToBinary(formData.painkiller_usage, "painkiller_usage"),
+  family_history: yesNoToBinary(formData.family_history, "family_history"),
+
+  // 🟢 LOW → always fallback default
+  physical_activity: formData.physical_activity || DEFAULT_VALUES.physical_activity,
+  diet: formData.diet || DEFAULT_VALUES.diet,
+  smoking: formData.smoking || DEFAULT_VALUES.smoking,
+  alcohol: formData.alcohol || DEFAULT_VALUES.alcohol,
+  weight_changes: formData.weight_changes || DEFAULT_VALUES.weight_changes,
+  stress_level: formData.stress_level || DEFAULT_VALUES.stress_level,
+};
       const response = await axiosInstance.post("/kidney/predict", payload);
       setResult(response.data);
     } catch (error) {
@@ -758,61 +956,6 @@ function Kidney() {
       setLoading(false);
     }
   }
-  async function handleDownloadReport() {
-  try {
-    setPdfLoading(true);
-
-    const payload = {
-      patient: {
-        name: "Test Patient",
-        age: 25,
-        gender: "Male",
-        id: "P001"
-      },
-      features: {
-        serum_creatinine: toNumber(formData.serum_creatinine),
-        gfr: toNumber(formData.gfr),
-        bun: toNumber(formData.bun),
-        serum_calcium: toNumber(formData.serum_calcium),
-        c3_c4: toNumber(formData.c3_c4),
-        oxalate_levels: toNumber(formData.oxalate_levels),
-        urine_ph: toNumber(formData.urine_ph),
-        blood_pressure: toNumber(formData.blood_pressure),
-        water_intake: toNumber(formData.water_intake),
-        months: toNumber(formData.months),
-        ana: yesNoToBinary(formData.ana),
-        hematuria: yesNoToBinary(formData.hematuria),
-        painkiller_usage: yesNoToBinary(formData.painkiller_usage),
-        family_history: yesNoToBinary(formData.family_history),
-        physical_activity: formData.physical_activity,
-        diet: formData.diet,
-        smoking: formData.smoking,
-        alcohol: formData.alcohol,
-        weight_changes: formData.weight_changes,
-        stress_level: formData.stress_level,
-      }
-    };
-
-    const response = await axiosInstance.post(
-      "/kidney/predict-report",
-      payload,
-      { responseType: "blob" }
-    );
-
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "kidney_report.pdf");
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-  } catch (error) {
-    alert("PDF generation failed");
-  } finally {
-    setPdfLoading(false);
-  }
-}
 
   const critLevel = result?.criticality?.toLowerCase() || "";
   const critTier = critLevel.includes("high") ? "high"
@@ -837,10 +980,7 @@ function Kidney() {
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
               <div className="kd-logo">Only<span>Kidney</span> AI</div>
               <div className="kd-logo-sub">Disease Prediction · ML Pipeline · Feature Importance System</div>
-              <div className="kd-version">
-                <span className="kd-ver-dot" />
-                FastAPI + React · 20 Features · 3 Priority Tiers
-              </div>
+              
             </motion.div>
           </div>
         </div>
@@ -867,6 +1007,8 @@ function Kidney() {
                 cardClass="kd-card-clinical"
               >
                 <div className="kd-grid-3">
+                  <KdInput name="age"             value={formData.age}             onChange={handleChange} />
+
                   <KdInput name="gfr"             value={formData.gfr}             onChange={handleChange} />
                   <KdInput name="serum_creatinine" value={formData.serum_creatinine} onChange={handleChange} />
                   <KdInput name="bun"              value={formData.bun}              onChange={handleChange} />
@@ -952,6 +1094,7 @@ function Kidney() {
           {/* ── Result ── */}
           <AnimatePresence>
             {result && (
+               <>
               <motion.div
                 className={`kd-result kd-result-${critTier}`}
                 initial={{ opacity: 0, y: 16 }}
@@ -961,12 +1104,8 @@ function Kidney() {
               >
                 <div className="kd-result-title">
                   Prediction Result
-                  <span className="kd-crit-badge" style={critBadgeStyle}>
-                    {result.criticality}
-                  </span>
+                  <span className="kd-crit-badge" style={critBadgeStyle}>{result.criticality}</span>
                 </div>
-
-                {/* RESULT GRID */}
                 <div className="kd-result-grid">
                   <div>
                     <div className="kd-result-key">Disease</div>
@@ -978,34 +1117,30 @@ function Kidney() {
                   </div>
                   <div>
                     <div className="kd-result-key">Confidence</div>
-                    <div className="kd-result-val">
-                      {result.confidence ?? "N/A"}
-                    </div>
+                    <div className="kd-result-val">{result.confidence ?? "N/A"}</div>
                   </div>
                 </div>
-
-                {/* 🔥 DOWNLOAD BUTTON (FIXED POSITION) */}
-                <div style={{ marginTop: 20 }}>
-                  <button
-                    onClick={handleDownloadReport}
-                    disabled={pdfLoading}
-                    className="kd-submit"
-                    style={{ fontSize: "0.8rem", padding: "10px" }}
-                  >
-                    {pdfLoading ? (
-                      <>
-                        <span className="kd-spinner" /> Generating Report...
-                      </>
-                    ) : (
-                      "Download Full Clinical Report (PDF)"
-                    )}
-                  </button>
-                </div>
-
               </motion.div>
+ {/* ✅ Download Button */}
+    <div style={{ marginTop: 16 }}>
+      <button
+        onClick={generatePDF}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "8px",
+          border: "none",
+          background: "#0ea5e9",
+          color: "#fff",
+          fontWeight: "600",
+          cursor: "pointer",
+        }}
+      >
+        Download Report PDF 📄
+      </button>
+    </div> </>
             )}
           </AnimatePresence>
-
+            
           {/* ── Legend ── */}
           <div className="kd-legend">
             <div className="kd-legend-item"><div className="kd-legend-dot" style={{ background: "#ef4444" }} />Must Act — High Priority</div>
