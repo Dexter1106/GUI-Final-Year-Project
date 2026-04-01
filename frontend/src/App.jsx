@@ -22,6 +22,7 @@ import Kidney from "./pages/organs/Kidney";
 import Heart from "./pages/organs/Heart";
 
 import Lung from "./pages/organs/Lung";
+import Liver from "./pages/organs/Liver";
 
 function App() {
   return (
@@ -76,6 +77,14 @@ function App() {
             element={
               <RoleGuard allowedRoles={["DOCTOR"]}>
                 <Heart />
+              </RoleGuard>
+            }
+          />
+           <Route
+            path="/organ/liver"
+            element={
+              <RoleGuard allowedRoles={["DOCTOR"]}>
+                <Liver />
               </RoleGuard>
             }
           />
