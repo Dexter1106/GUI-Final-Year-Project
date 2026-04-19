@@ -18,7 +18,7 @@ import autoTable from "jspdf-autotable";
 ───────────────────────────────────────────── */
 const GLOBAL_CSS = `
   /* swapped to a cleaner sans-serif UI font and simplified spacing */
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  /* Font inherited from global Plus Jakarta Sans (index.html) */
 
   :root {
     --k-bg:        #f0f4f8;
@@ -39,8 +39,8 @@ const GLOBAL_CSS = `
     --k-text:      #0f172a;
     --k-muted:     #64748b;
     /* use a modern, neutral sans-serif for both body and display text */
-    --k-mono:      'Inter', sans-serif;
-    --k-display:   'Inter', sans-serif;
+    --k-mono:      'Plus Jakarta Sans', sans-serif;
+    --k-display:   'Plus Jakarta Sans', sans-serif;
   }
 
   .kd-root * { box-sizing: border-box; }

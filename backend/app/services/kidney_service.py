@@ -57,9 +57,9 @@ def predict_kidney_disease(input_data: dict) -> dict:
 
     stage_map = {
         0: ("No Kidney Disease", "LOW", "NO TRANSPLANT REQUIRED (Treatment)"),
-        1: ("CKD Stage 1–2", "MEDIUM", "MEDICATION & MONITORING (Treatment)"),
-        2: ("CKD Stage 3", "HIGH", "STRICT MONITORING (Treatment)"),
-        3: ("CKD Stage 4", "VERY HIGH", "DIALYSIS REQUIRED(Treatment)"),
+        1: ("CKD Stage 1–2", "MEDIUM", "TREATMENT Required"),
+        2: ("CKD Stage 3", "HIGH", "TREATMENT Required"),
+        3: ("CKD Stage 4", "VERY HIGH", "TREATMENT REQUIRED"),
         4: ("End Stage Renal Disease", "CRITICAL", "TRANSPLANT REQUIRED"),
     }
 

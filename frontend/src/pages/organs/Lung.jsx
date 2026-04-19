@@ -550,7 +550,7 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
 
   doc.setFontSize(11);
   doc.setTextColor(...primary);
-  doc.text("Clinical Interpretation Notes", 14, finalY);
+  //doc.text("Clinical Interpretation Notes", 14, finalY);
   doc.line(14, finalY + 2, pageWidth - 14, finalY + 2);
 
   doc.setFontSize(9);
@@ -566,11 +566,11 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
   ];
 
   finalY += 8;
-  for (const note of notes) {
-    checkPageBreak(8);
-    doc.text(note, 18, finalY);
-    finalY += 7;
-  }
+  // for (const note of notes) {
+  //   checkPageBreak(8);
+  //   doc.text(note, 18, finalY);
+  //   finalY += 7;
+  // }
 
   // ── FOOTERS ON ALL PAGES ──
   const pageCount = doc.internal.getNumberOfPages();
@@ -646,8 +646,7 @@ const FieldInput = ({ name, onChange }) => {
       {/* Tooltip */}
       <div className="absolute z-50 hidden group-hover:flex flex-col
                       bg-white border border-slate-200 shadow-xl rounded-xl
-                      text-slate-700 text-xs p-4 top-full left-0 mt-1 w-72 pointer-events-none"
-           style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      text-slate-700 text-xs p-4 top-full left-0 mt-1 w-72 pointer-events-none">
         <div className="flex items-center justify-between mb-2">
           <span className="font-bold text-slate-900 text-sm">{meta.label}</span>
           <span className={`text-xs px-1.5 py-0.5 rounded border font-semibold ${cfg.tagBg}`}>
@@ -679,7 +678,7 @@ const FieldInput = ({ name, onChange }) => {
    TOPOLOGY-STYLE CARD
 ═══════════════════════════════════════════════════ */
 const Card = ({ children, className = "", accentColor = "bg-teal-500" }) => (
-  <div className={`relative bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden ${className}`}>
+  <div className={`relative bg-white border border-slate-200 rounded-xl shadow-sm overflow-visible ${className}`}>
     <div className={`absolute top-0 left-0 right-0 h-0.5 ${accentColor}`} />
     <div className="pt-5 px-6 pb-6">{children}</div>
   </div>
@@ -802,16 +801,7 @@ const Lungs = () => {
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
-        .font-syne     { font-family: 'Syne', sans-serif; }
-        .font-mono-jb  { font-family: 'JetBrains Mono', monospace; }
-      `}</style>
-
-      <div className="min-h-screen font-mono-jb" style={{
-        background: "linear-gradient(135deg, #f0f9ff 0%, #fafafa 50%, #f0fdf4 100%)",
-        fontFamily: "'JetBrains Mono', monospace",
-      }}>
+      <div className="min-h-screen font-sans bg-appbg">
         <Navbar />
 
         <main className="max-w-5xl mx-auto px-4 py-10 space-y-5">
@@ -826,7 +816,7 @@ const Lungs = () => {
                     Clinical AI System
                   </span>
                 </div>
-                <h1 className="font-syne text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                <h1 className="font-sans text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">
                   COPD <span style={{ color: "#0d9488" }}>Prediction</span> System
                 </h1>
                 <p className="text-xs text-slate-400 mt-1">
@@ -850,7 +840,7 @@ const Lungs = () => {
           <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.05 }}>
             <Card accentColor="bg-blue-500">
               <LayerLabel step="01" color="text-blue-500">
-                <span className="font-syne font-bold text-slate-900 text-sm leading-tight">
+                <span className="font-sans font-bold text-slate-900 text-sm leading-tight">
                   Breath Acoustics Screening
                 </span>
                 <span className="text-xs text-slate-400 mt-0.5">
@@ -920,14 +910,14 @@ const Lungs = () => {
                   <div className="flex flex-wrap items-start gap-6 mb-5">
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Prediction</p>
-                      <p className={`font-syne text-2xl font-bold tracking-tight
+                      <p className={`font-sans text-2xl font-bold tracking-tight
                         ${stage1Result.prediction === "COPD" ? "text-red-600" : "text-emerald-600"}`}>
                         {stage1Result.prediction}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Confidence</p>
-                      <p className="font-syne text-2xl font-bold text-slate-800">
+                      <p className="font-sans text-2xl font-bold text-slate-800">
                         {fmt(stage1Result.confidence)}
                         <span className="text-sm text-slate-400 font-normal ml-0.5">%</span>
                       </p>
@@ -1055,7 +1045,7 @@ const Lungs = () => {
                   <div className="flex flex-wrap items-start gap-6 mb-6">
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">GOLD Stage</p>
-                      <div className={`font-syne text-4xl font-extrabold tracking-tight leading-none ${risk.color}`}>
+                      <div className={`font-sans text-4xl font-extrabold tracking-tight leading-none ${risk.color}`}>
                         GOLD {stage2Result.gold_stage}
                       </div>
                       <div className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg border text-xs font-semibold ${risk.badgeBg}`}>
@@ -1065,7 +1055,7 @@ const Lungs = () => {
                     </div>
                     <div className="ml-auto text-right">
                       <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Confidence</p>
-                      <p className={`font-syne text-4xl font-extrabold leading-none ${risk.color}`}>
+                      <p className={`font-sans text-4xl font-extrabold leading-none ${risk.color}`}>
                         {fmt(stage2Result.confidence)}
                         <span className="text-lg text-slate-400 font-normal ml-0.5">%</span>
                       </p>
