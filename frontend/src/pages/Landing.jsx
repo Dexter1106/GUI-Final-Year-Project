@@ -126,11 +126,20 @@ function Landing() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-teal-400 flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">
-              <span className="text-white font-bold text-sm">D</span>
+              <span className="text-white font-bold text-sm">M</span>
             </div>
-            <span className="text-xl font-bold text-textprimary tracking-tight">
-              Disease<span className="text-primary">AI</span>
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold text-textprimary tracking-tight leading-tight">
+                Medi<span className="text-primary">Sense</span>
+              </span>
+              <span className="text-[9px] font-bold tracking-[0.15em] uppercase leading-none">
+                <span className="text-indigo-500">Predict</span>
+                <span className="text-slate-300 mx-0.5">›</span>
+                <span className="text-teal-500">Prevent</span>
+                <span className="text-slate-300 mx-0.5">›</span>
+                <span className="text-emerald-500">Cure</span>
+              </span>
+            </div>
           </Link>
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-textsecondary">
@@ -180,8 +189,23 @@ function Landing() {
               Prediction Platform
             </h1>
 
+            {/* Tagline */}
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-500 bg-clip-text text-transparent">
+                Predict
+              </span>
+              <span className="text-teal-400 text-xl font-light">›</span>
+              <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-teal-500 to-teal-400 bg-clip-text text-transparent">
+                Prevent
+              </span>
+              <span className="text-teal-400 text-xl font-light">›</span>
+              <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-400 bg-clip-text text-transparent">
+                Cure
+              </span>
+            </div>
+
             <p className="text-lg md:text-xl text-slate-500 leading-relaxed max-w-2xl mx-auto mb-10">
-              DiseaseAI is an intelligent medical decision-support system
+              MediSense is an intelligent medical decision-support system
               designed to assist clinicians in early detection, severity
               assessment, and treatment planning for critical diseases.
             </p>
@@ -330,6 +354,14 @@ function Landing() {
             <div className="absolute bottom-[-30%] left-[-5%] w-80 h-80 bg-teal-300/15 rounded-full blur-3xl" />
 
             <div className="relative z-10">
+              {/* CTA Tagline pill */}
+              <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-sm font-bold text-white mb-6 tracking-wide">
+                <span className="text-indigo-200">Predict</span>
+                <span className="text-white/40">›</span>
+                <span className="text-teal-200">Prevent</span>
+                <span className="text-white/40">›</span>
+                <span className="text-emerald-200">Cure</span>
+              </div>
               <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4">
                 Start Predicting Disease Risk Today
               </h2>
@@ -408,15 +440,31 @@ function Landing() {
             <div className="md:col-span-1">
               <div className="flex items-center gap-2.5 mb-4">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-teal-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                  <span className="text-white font-bold text-sm">D</span>
+                  <span className="text-white font-bold text-sm">M</span>
                 </div>
-                <span className="text-lg font-bold text-white tracking-tight">
-                  Disease<span className="text-indigo-400">AI</span>
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-lg font-bold text-white tracking-tight leading-tight">
+                    Medi<span className="text-indigo-400">Sense</span>
+                  </span>
+                  <span className="text-[9px] font-bold tracking-[0.15em] uppercase leading-none mt-0.5">
+                    <span className="text-indigo-400">Predict</span>
+                    <span className="text-slate-600 mx-0.5">›</span>
+                    <span className="text-teal-400">Prevent</span>
+                    <span className="text-slate-600 mx-0.5">›</span>
+                    <span className="text-emerald-400">Cure</span>
+                  </span>
+                </div>
               </div>
-              <p className="text-sm leading-relaxed">
-                An AI-driven disease prediction and clinical
+              <p className="text-sm leading-relaxed mb-3">
+                An AI-driven clinical decision support and disease prediction
                 decision support system. Final Year Engineering Project.
+              </p>
+              <p className="text-xs font-bold tracking-widest uppercase">
+                <span className="text-indigo-400">Predict</span>
+                <span className="text-slate-600 mx-1.5">›</span>
+                <span className="text-teal-400">Prevent</span>
+                <span className="text-slate-600 mx-1.5">›</span>
+                <span className="text-emerald-400">Cure</span>
               </p>
             </div>
 
@@ -483,7 +531,7 @@ function Landing() {
           {/* Bottom bar */}
           <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3">
             <p className="text-xs text-slate-500">
-              © 2026 DiseaseAI — All rights reserved
+              © 2026 MediSense — All rights reserved
             </p>
             <p className="text-xs text-slate-600">
               Developed with ❤️ by Pradhumnya Changdev Kalsait & Team

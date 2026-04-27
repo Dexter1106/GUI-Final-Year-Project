@@ -520,8 +520,8 @@ function PrintReport({ result, formValues }) {
       {/* ── Header */}
       <div className="print-header">
         <div>
-          <div className="print-header-title">❤️ OnlyHeart AI Diagnostic Report</div>
-          <div className="print-header-sub">AI-Powered Heart Disease Prediction System</div>
+          <div className="print-header-title">❤️ MediSense Heart — Diagnostic Report</div>
+          <div className="print-header-sub">AI-Powered Heart Disease Prediction System · MediSense</div>
         </div>
         <div className="print-header-badge">
           <div>Date: {today}</div>
@@ -610,7 +610,7 @@ function PrintReport({ result, formValues }) {
           <strong>Disclaimer:</strong> This report is AI-generated and should not be considered a medical diagnosis. Always consult a qualified healthcare professional before making any clinical decisions.
         </div>
 
-        <div className="print-footer">Page 1 of 1 — OnlyHeart AI Diagnostic Report</div>
+        <div className="print-footer">Page 1 of 1 — MediSense Heart Diagnostic Report</div>
       </div>
     </div>
   );
@@ -725,7 +725,7 @@ export default function HeartDiseasePrediction() {
         {/* Header */}
         <div style={{textAlign:"center",paddingBottom:36}}>
           <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(3,102,214,.10)",color:"#0366d6",border:"1px solid rgba(3,102,214,.25)",borderRadius:50,fontSize:".74rem",fontWeight:600,letterSpacing:".09em",textTransform:"uppercase",padding:"5px 14px",marginBottom:16}}>
-            🫀 OnlyHeart AI
+            🫀 MediSense Heart
           </div>
           <h1 style={{fontFamily:"'DM Serif Display',serif",fontSize:"clamp(2rem,5vw,3rem)",fontWeight:400,letterSpacing:"-.02em",lineHeight:1.15,color:"#1b1f23",marginBottom:10}}>
             Only<em style={{color:"#c0392b",fontStyle:"italic"}}>Heart</em> AI Risk Analyser

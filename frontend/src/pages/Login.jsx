@@ -117,11 +117,20 @@ function Login() {
           <div className="animate-stagger-1">
             <Link to="/" className="inline-flex items-center gap-3 mb-12 group">
               <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                <span className="text-white font-bold text-lg">D</span>
+                <span className="text-white font-bold text-lg">M</span>
               </div>
-              <span className="text-2xl font-bold tracking-tight">
-                Disease<span className="text-teal-200">AI</span>
-              </span>
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold tracking-tight leading-tight">
+                  Medi<span className="text-teal-200">Sense</span>
+                </span>
+                <span className="text-[10px] font-bold tracking-[0.15em] uppercase leading-none mt-0.5">
+                  <span className="text-indigo-200">Predict</span>
+                  <span className="text-white/30 mx-0.5">›</span>
+                  <span className="text-teal-200">Prevent</span>
+                  <span className="text-white/30 mx-0.5">›</span>
+                  <span className="text-emerald-200">Cure</span>
+                </span>
+              </div>
             </Link>
           </div>
 
@@ -136,6 +145,17 @@ function Login() {
               <br />
               Prediction
             </h2>
+          </div>
+
+          {/* Tagline pill */}
+          <div className="animate-stagger-3 mb-6">
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/15 text-sm font-bold tracking-wide">
+              <span className="text-indigo-200">Predict</span>
+              <span className="text-white/30">›</span>
+              <span className="text-teal-200">Prevent</span>
+              <span className="text-white/30">›</span>
+              <span className="text-emerald-200">Cure</span>
+            </div>
           </div>
 
           {/* Description */}
@@ -219,11 +239,20 @@ function Login() {
           <div className="lg:hidden text-center mb-8 animate-stagger-1">
             <Link to="/" className="inline-flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-teal-400 flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-sm">D</span>
+                <span className="text-white font-bold text-sm">M</span>
               </div>
-              <span className="text-2xl font-bold text-textprimary tracking-tight">
-                Disease<span className="text-primary">AI</span>
-              </span>
+              <div className="flex flex-col text-left">
+                <span className="text-2xl font-bold text-textprimary tracking-tight leading-tight">
+                  Medi<span className="text-primary">Sense</span>
+                </span>
+                <span className="text-[9px] font-bold tracking-[0.15em] uppercase leading-none">
+                  <span className="text-indigo-500">Predict</span>
+                  <span className="text-slate-300 mx-0.5">›</span>
+                  <span className="text-teal-500">Prevent</span>
+                  <span className="text-slate-300 mx-0.5">›</span>
+                  <span className="text-emerald-500">Cure</span>
+                </span>
+              </div>
             </Link>
           </div>
 
@@ -280,8 +309,8 @@ function Login() {
                 </div>
                 <p className="mt-2 text-textsecondary text-sm">
                   {isSignIn
-                    ? "Sign in to access your DiseaseAI dashboard"
-                    : "Create your account to start using DiseaseAI"}
+                    ? "Sign in to access your MediSense dashboard"
+                    : "Create your account to start using MediSense"}
                 </p>
               </div>
 
@@ -388,7 +417,7 @@ function Login() {
                 </div>
                 <div className="relative flex justify-center">
                   <span className="px-4 bg-white/70 text-sm text-textsecondary rounded-full">
-                    {isSignIn ? "New to DiseaseAI?" : "Already have an account?"}
+                    {isSignIn ? "New to MediSense?" : "Already have an account?"}
                   </span>
                 </div>
               </div>
@@ -408,7 +437,7 @@ function Login() {
 
           {/* Footer */}
           <p className="mt-6 text-center text-xs text-textmuted animate-stagger-6">
-            © 2026 DiseaseAI — AI-Driven Clinical Decision Support
+            © 2026 MediSense · <span className="font-semibold"><span className="text-indigo-400">Predict</span> › <span className="text-teal-400">Prevent</span> › <span className="text-emerald-400">Cure</span></span>
           </p>
         </div>
       </div>

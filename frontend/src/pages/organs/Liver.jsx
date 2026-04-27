@@ -171,6 +171,22 @@ const FEATURE_INFO = {
 const BADGE_LABEL = { high: "Critical", medium: "Key", low: "Supporting" };
 
 /* ─────────────────────────────────────────────
+   DEFAULT VALUES — Supporting (low) fields with safe baselines
+   (same pattern as Kidney.jsx DEFAULT_VALUES)
+───────────────────────────────────────────── */
+const DEFAULT_VALUES = {
+  // LOW (Supporting) — healthy population baselines
+  che:              8.0,    // mid-range healthy cholinesterase (5.3–12.9 kU/L)
+  chol:             180,    // desirable cholesterol (<200 mg/dL)
+  prot:             7.0,    // mid-range healthy total protein (6.0–8.3 g/dL)
+  ascites:          0,      // no ascites (normal)
+  encephalopathy:   0,      // no encephalopathy (normal)
+};
+
+/* Fields that are required even though they are "low" priority */
+const REQUIRED_LOW = new Set(["age", "gender"]);
+
+/* ─────────────────────────────────────────────
    TOOLTIP KIT COMPONENT
 ───────────────────────────────────────────── */
 function TooltipKit({ name }) {
@@ -316,8 +332,9 @@ const Liver = () => {
 
   const validate = () => {
     const errs = {};
+    // Only require HIGH + MEDIUM + age + gender (not low-priority defaultable fields)
     const required = ["age", "gender", "alb", "alp", "alt", "ast", "bil",
-      "direct_bilirubin", "che", "chol", "crea", "ggt", "prot"];
+      "direct_bilirubin", "crea", "ggt"];
 
     required.forEach((f) => {
       if (values[f] === "") errs[f] = "Required.";
@@ -357,21 +374,24 @@ const Liver = () => {
       const payload = {
         age:              parseFloat(values.age),
         gender:           parseInt(values.gender),
-        alb:              parseFloat(values.alb),
-        alp:              parseFloat(values.alp),
+        // HIGH fields (required)
         alt:              parseFloat(values.alt),
         ast:              parseFloat(values.ast),
         bil:              parseFloat(values.bil),
-        direct_bilirubin: parseFloat(values.direct_bilirubin),
-        che:              parseFloat(values.che),
-        chol:             parseFloat(values.chol),
         crea:             parseFloat(values.crea),
-        ggt:              parseFloat(values.ggt),
-        prot:             parseFloat(values.prot),
         inr:            values.inr            ? parseFloat(values.inr)            : null,
+        // MEDIUM fields (required)
+        alb:              parseFloat(values.alb),
+        alp:              parseFloat(values.alp),
+        direct_bilirubin: parseFloat(values.direct_bilirubin),
+        ggt:              parseFloat(values.ggt),
         sodium:         values.sodium         ? parseFloat(values.sodium)         : null,
-        ascites:        values.ascites        ? parseInt(values.ascites)          : null,
-        encephalopathy: values.encephalopathy ? parseInt(values.encephalopathy)   : null,
+        // LOW fields — use default if empty
+        che:              values.che  !== "" ? parseFloat(values.che)  : DEFAULT_VALUES.che,
+        chol:             values.chol !== "" ? parseFloat(values.chol) : DEFAULT_VALUES.chol,
+        prot:             values.prot !== "" ? parseFloat(values.prot) : DEFAULT_VALUES.prot,
+        ascites:          values.ascites        !== "" ? parseInt(values.ascites)          : DEFAULT_VALUES.ascites,
+        encephalopathy:   values.encephalopathy !== "" ? parseInt(values.encephalopathy)   : DEFAULT_VALUES.encephalopathy,
       };
 
       const res = await axiosInstance.post("/liver/predict", payload);
@@ -388,21 +408,21 @@ const Liver = () => {
       const payload = {
         age:              parseFloat(values.age),
         gender:           parseInt(values.gender),
-        alb:              parseFloat(values.alb),
-        alp:              parseFloat(values.alp),
         alt:              parseFloat(values.alt),
         ast:              parseFloat(values.ast),
         bil:              parseFloat(values.bil),
-        direct_bilirubin: parseFloat(values.direct_bilirubin),
-        che:              parseFloat(values.che),
-        chol:             parseFloat(values.chol),
         crea:             parseFloat(values.crea),
+        alb:              parseFloat(values.alb),
+        alp:              parseFloat(values.alp),
+        direct_bilirubin: parseFloat(values.direct_bilirubin),
         ggt:              parseFloat(values.ggt),
-        prot:             parseFloat(values.prot),
         inr:            values.inr            ? parseFloat(values.inr)            : null,
         sodium:         values.sodium         ? parseFloat(values.sodium)         : null,
-        ascites:        values.ascites        !== "" ? parseInt(values.ascites)   : null,
-        encephalopathy: values.encephalopathy !== "" ? parseInt(values.encephalopathy) : null,
+        che:              values.che  !== "" ? parseFloat(values.che)  : DEFAULT_VALUES.che,
+        chol:             values.chol !== "" ? parseFloat(values.chol) : DEFAULT_VALUES.chol,
+        prot:             values.prot !== "" ? parseFloat(values.prot) : DEFAULT_VALUES.prot,
+        ascites:          values.ascites        !== "" ? parseInt(values.ascites)   : DEFAULT_VALUES.ascites,
+        encephalopathy:   values.encephalopathy !== "" ? parseInt(values.encephalopathy) : DEFAULT_VALUES.encephalopathy,
       };
 
       const response = await axiosInstance.post("/liver/report", payload, {
@@ -541,8 +561,8 @@ const Liver = () => {
       `}</style>
 
       <header className="page-header">
-        <div className="page-header__logo">Only<span>Liver</span></div>
-        <div className="page-header__sub">Liver Disease Decision Support System</div>
+        <div className="page-header__logo">Medi<span>Sense</span> Liver</div>
+        <div className="page-header__sub">Liver Disease Decision Support System · MediSense</div>
       </header>
 
       <main className="page-content">
@@ -640,13 +660,19 @@ const Liver = () => {
 
                 <div className={`field field--${FEATURE_PRIORITY.che}`}>
                   <FieldLabel name="che" text="Cholinesterase (kU/L)" />
-                  {inp("che")}
+                  <div style={{ position: "relative" }}>
+                    {inp("che")}
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.65rem", color: "#059669", fontWeight: 600, pointerEvents: "none" }}>Optional</span>
+                  </div>
                   {errors.che && <span className="field-error">{errors.che}</span>}
                 </div>
 
                 <div className={`field field--${FEATURE_PRIORITY.chol}`}>
                   <FieldLabel name="chol" text="Cholesterol (mg/dL)" />
-                  {inp("chol")}
+                  <div style={{ position: "relative" }}>
+                    {inp("chol")}
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.65rem", color: "#059669", fontWeight: 600, pointerEvents: "none" }}>Optional</span>
+                  </div>
                   {errors.chol && <span className="field-error">{errors.chol}</span>}
                 </div>
 
@@ -664,7 +690,10 @@ const Liver = () => {
 
                 <div className={`field field--${FEATURE_PRIORITY.prot}`}>
                   <FieldLabel name="prot" text="Total Protein (g/dL)" />
-                  {inp("prot")}
+                  <div style={{ position: "relative" }}>
+                    {inp("prot")}
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.65rem", color: "#059669", fontWeight: 600, pointerEvents: "none" }}>Optional</span>
+                  </div>
                   {errors.prot && <span className="field-error">{errors.prot}</span>}
                 </div>
 
@@ -676,7 +705,7 @@ const Liver = () => {
           <div className="card">
             <div className="card__header">
               <div className="card__icon">③</div>
-              <h2>Severity Scoring (Optional)</h2>
+              <h2>Severity Scoring (Optional — defaults applied if empty)</h2>
             </div>
             <div className="card__body">
               <div className="field-grid">

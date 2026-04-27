@@ -827,7 +827,7 @@ def generate_report(patient_data, prediction_result: dict) -> dict:
 
         "report_metadata": {
             "generated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "system":       "OnlyLiver AI Decision Support System v2.0",
+            "system":       "MediSense Liver — AI Decision Support System v2.0",
         },
 
         "patient_information": {
@@ -1013,7 +1013,7 @@ def _info_box(text, bg_color, text_color, styles):
 def _pdf_build_header(report, styles, page_width):
     meta = report.get("report_metadata", {})
     data = [
-        [Paragraph("OnlyLiver AI", styles["title"])],
+        [Paragraph("MediSense Liver", styles["title"])],
         [Paragraph("Clinical Liver Disease Decision Support Report", styles["subtitle"])],
         [Paragraph(
             f"Generated: {meta.get('generated_at', '')}  |  {meta.get('system', '')}",
@@ -1277,8 +1277,8 @@ def generate_pdf_from_report(report: dict) -> bytes:
         pagesize=A4,
         leftMargin=margin, rightMargin=margin,
         topMargin=margin,  bottomMargin=margin,
-        title="OnlyLiver AI Clinical Report",
-        author="OnlyLiver AI Decision Support System",
+        title="MediSense Liver — Clinical Report",
+        author="MediSense Liver AI Decision Support System",
     )
 
     page_width = A4[0] - 2 * margin

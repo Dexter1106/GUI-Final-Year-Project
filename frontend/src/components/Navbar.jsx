@@ -65,11 +65,20 @@ function Navbar() {
               className="flex items-center gap-2.5 group"
             >
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-teal-400 flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">
-                <span className="text-white font-bold text-sm">D</span>
+                <span className="text-white font-bold text-sm">M</span>
               </div>
-              <span className="text-xl font-bold text-textprimary tracking-tight">
-                Disease<span className="text-primary">AI</span>
-              </span>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-textprimary tracking-tight leading-tight">
+                  Medi<span className="text-primary">Sense</span>
+                </span>
+                <span className="text-[9px] font-bold tracking-[0.15em] uppercase leading-none">
+                  <span className="text-indigo-500">Predict</span>
+                  <span className="text-slate-300 mx-0.5">›</span>
+                  <span className="text-teal-500">Prevent</span>
+                  <span className="text-slate-300 mx-0.5">›</span>
+                  <span className="text-emerald-500">Cure</span>
+                </span>
+              </div>
             </Link>
 
             {/* Desktop Nav Links */}

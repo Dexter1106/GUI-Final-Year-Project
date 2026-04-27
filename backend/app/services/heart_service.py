@@ -1,7 +1,7 @@
 ####################################################################
 #
 # File Name    : heart_service.py
-# Description  : OnlyHeart AI — Core prediction service (NO Flask here)
+# Description  : MediSense Heart — Core prediction service (NO Flask here)
 #                Pipeline: KNNImputer → StandardScaler → XGBClassifier
 # Author       : Pradhumnya Changdev Kalsait
 # Date         : 20/01/26

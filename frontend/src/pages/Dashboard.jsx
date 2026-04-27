@@ -176,7 +176,15 @@ function Dashboard() {
                     Dashboard
                   </span>
                 </h1>
-                <p className="mt-3 text-textsecondary text-lg max-w-xl">
+                {/* Tagline */}
+                <div className="mt-3 mb-1 flex items-center gap-2">
+                  <span className="text-sm font-bold bg-gradient-to-r from-indigo-600 to-indigo-500 bg-clip-text text-transparent">Predict</span>
+                  <span className="text-teal-400 text-sm">›</span>
+                  <span className="text-sm font-bold bg-gradient-to-r from-teal-500 to-teal-400 bg-clip-text text-transparent">Prevent</span>
+                  <span className="text-teal-400 text-sm">›</span>
+                  <span className="text-sm font-bold bg-gradient-to-r from-emerald-500 to-emerald-400 bg-clip-text text-transparent">Cure</span>
+                </div>
+                <p className="mt-1 text-textsecondary text-lg max-w-xl">
                   Select an organ module below to begin AI-powered disease risk prediction and clinical analysis.
                 </p>
               </div>
@@ -367,7 +375,7 @@ function Dashboard() {
 
         {/* ═══════════════════════ FOOTER ═══════════════════════ */}
         <div className="relative z-10 mt-8 pb-8 text-center text-sm text-textsecondary">
-          DiseaseAI © 2026 — AI-Driven Clinical Decision Support
+          MediSense © 2026 · <span className="font-semibold"><span className="text-indigo-400">Predict</span> › <span className="text-teal-400">Prevent</span> › <span className="text-emerald-400">Cure</span></span>
         </div>
       </div>
     </>

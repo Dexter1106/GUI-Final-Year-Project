@@ -1,7 +1,7 @@
 ####################################################################
 #
 # File Name    : heart_controller.py
-# Description  : OnlyHeart AI — /predict endpoint (Flask Blueprint)
+# Description  : MediSense Heart — /predict endpoint (Flask Blueprint)
 # Author       : Pradhumnya Changdev Kalsait
 # Date         : 20/01/26
 #
@@ -17,7 +17,7 @@ heart_blueprint = Blueprint("heart_blueprint", __name__)
 ################################################################
 #
 # Function Name : predict_heart
-# Description   : OnlyHeart AI — Heart disease prediction REST API
+# Description   : MediSense Heart — Heart disease prediction REST API
 # Author        : Pradhumnya Changdev Kalsait
 # Date          : 20/01/26
 # Prototype     : dict predict_heart(void)

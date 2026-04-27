@@ -267,6 +267,25 @@ const FIELD_META = {
 };
 
 /* ═══════════════════════════════════════════════════
+   DEFAULT VALUES — Supporting fields with safe baselines
+   (same pattern as Kidney.jsx DEFAULT_VALUES)
+═══════════════════════════════════════════════════ */
+const DEFAULT_VALUES = {
+  "BMI, kg/m2":               22.0,   // mid-range healthy BMI (18.5–24.9)
+  "Pack History":             0,      // zero tobacco exposure
+  "status of smoking":        0,      // non-smoker / ex-smoker
+  "Depression":               0,      // absent
+  "History of Heart Failure":  0,      // absent
+  "Sputum":                   0,      // no purulent sputum
+  "Vaccination":              1,      // vaccinated (optimistic baseline)
+  "Dependent":                0,      // functionally independent
+  "Height/m":                 1.70,   // average adult height
+};
+
+/* Fields that are required even though they are "supporting" level */
+const REQUIRED_SUPPORTING = new Set(["Age", "Gender"]);
+
+/* ═══════════════════════════════════════════════════
    LEVEL → VISUAL CONFIG
 ═══════════════════════════════════════════════════ */
 const LEVEL_CFG = {
@@ -373,10 +392,10 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
 
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.text("OnlyLung AI Diagnostic Report", 14, 15);
+    doc.text("MediSense Lung — Diagnostic Report", 14, 15);
 
     doc.setFontSize(9);
-    doc.text("AI-Powered COPD Two-Stage Prediction System · GOLD 2024", 14, 21);
+    doc.text("AI-Powered COPD Two-Stage Prediction System · GOLD 2024 · MediSense", 14, 21);
 
     doc.setTextColor(...dark);
   };
@@ -437,7 +456,7 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
 
     if (stage1Result.probabilities) {
       const entries = Object.entries(stage1Result.probabilities);
-      const probStr = entries.map(([k, v]) => `${k}: ${fmt(v)}%`).join("   |   ");
+      const probStr = entries.map(([k, v]) => `${k}: ${fmt(v.probability)}%`).join("   |   ");
       doc.setFontSize(9);
       doc.setTextColor(80);
       doc.text(`Probabilities : ${probStr}`, 18, y + 22);
@@ -532,7 +551,7 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
 
     if (stage2Result.probabilities) {
       const entries = Object.entries(stage2Result.probabilities);
-      const probStr = entries.map(([k, v]) => `${k}: ${fmt(v)}%`).join("   |   ");
+      const probStr = entries.map(([k, v]) => `${k}: ${fmt(v.probability)}%`).join("   |   ");
       doc.setFontSize(8.5);
       doc.setTextColor(80);
       doc.text(`Probabilities : ${probStr}`, 18, finalY + 41);
@@ -579,7 +598,206 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
     addFooter();
   }
 
-  doc.save("OnlyLung_COPD_Report.pdf");
+  doc.save("MediSense_Lung_COPD_Report.pdf");
+}
+
+/* ═══════════════════════════════════════════════════
+   STAGE 1 STANDALONE PDF  — per-class clinical advice
+═══════════════════════════════════════════════════ */
+const STAGE1_ADVICE = {
+  COPD: {
+    title: "COPD Signal Detected",
+    risk: "High",
+    color: [239, 68, 68],
+    notes: [
+      "• COPD pattern identified via breath acoustics analysis.",
+      "• Proceed to Stage 2 Clinical Severity Assessment for GOLD staging.",
+      "• Recommend confirmatory spirometry (FEV₁/FVC < 0.70 post-bronchodilator).",
+      "• Assess exacerbation history and symptom burden (mMRC / CAT score).",
+      "• If confirmed, initiate bronchodilator therapy per GOLD 2024 guidelines.",
+      "• Annual influenza and pneumococcal vaccination recommended.",
+    ],
+  },
+  SMOKERS: {
+    title: "Active Smoker Pattern Detected",
+    risk: "Moderate — At Risk for COPD",
+    color: [245, 158, 11],
+    notes: [
+      "• Breath acoustics indicate active smoking pattern.",
+      "• Smoking is the #1 modifiable risk factor for COPD (GOLD 2024, §1.3).",
+      "• Active smokers lose ~50 mL/yr additional FEV₁ vs non-smokers.",
+      "• 15–20% of smokers develop clinically significant COPD.",
+      "• Smoking cessation is the single most effective intervention to slow disease.",
+      "• Recommend: annual spirometry screening for early COPD detection.",
+      "• Consider nicotine replacement therapy (NRT), varenicline, or bupropion.",
+      "• Counsel on second-hand smoke risks to household members.",
+    ],
+  },
+  CONTROL: {
+    title: "Normal Breath Pattern — No COPD Indicators",
+    risk: "Low",
+    color: [16, 185, 129],
+    notes: [
+      "• Breath acoustics are within normal healthy range.",
+      "• No COPD or smoking-related patterns detected.",
+      "• Continue routine health monitoring and annual check-ups.",
+      "• Maintain regular physical activity (≥ 150 min/week moderate exercise).",
+      "• Avoid occupational dust, fumes, and indoor biomass smoke exposure.",
+      "• Influenza vaccination recommended for general population health.",
+    ],
+  },
+  AIR: {
+    title: "Ambient Air / Reference Sample Detected",
+    risk: "N/A — Non-Biological Sample",
+    color: [100, 116, 139],
+    notes: [
+      "• The uploaded sample appears to be ambient/environmental air.",
+      "• No biological respiratory pattern was identified.",
+      "• This classification serves as a baseline/reference reading.",
+      "• Please upload a patient breath sample for clinical analysis.",
+      "• Ensure proper e-nose sampling protocol is followed.",
+    ],
+  },
+};
+
+function generateStage1PDF(stage1Result) {
+  const doc = new jsPDF();
+
+  const prediction = stage1Result.prediction || "CONTROL";
+  const advice = STAGE1_ADVICE[prediction] || STAGE1_ADVICE.CONTROL;
+
+  const primary   = advice.color;
+  const lightGray = [240, 240, 240];
+  const dark      = [40, 40, 40];
+
+  const pageHeight = doc.internal.pageSize.height;
+  const pageWidth  = doc.internal.pageSize.width;
+
+  // ── HEADER ──
+  const addHeader = () => {
+    doc.setFillColor(...primary);
+    doc.rect(0, 0, pageWidth, 25, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text("MediSense Lung — Stage 1 Screening Report", 14, 15);
+    doc.setFontSize(9);
+    doc.text("AI-Powered Breath Acoustics Analysis · MediSense", 14, 21);
+    doc.setTextColor(...dark);
+  };
+
+  // ── FOOTER ──
+  const addFooter = () => {
+    doc.setDrawColor(200);
+    doc.line(14, pageHeight - 15, pageWidth - 14, pageHeight - 15);
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      "Disclaimer: This report is AI-generated and should not be considered a medical diagnosis.",
+      14, pageHeight - 10
+    );
+    doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 30, pageHeight - 5);
+  };
+
+  addHeader();
+
+  // ── GENERAL INFORMATION ──
+  let y = 35;
+  doc.setFontSize(12);
+  doc.setTextColor(...primary);
+  doc.text("General Information", 14, y);
+  doc.setDrawColor(...primary);
+  doc.line(14, y + 2, pageWidth - 14, y + 2);
+
+  doc.setTextColor(...dark);
+  doc.setFontSize(10);
+  y += 10;
+  doc.text(`Date        : ${new Date().toLocaleDateString()}`, 14, y);
+  y += 6;
+  doc.text(`Report Type : Breath Acoustics Screening (Stage 1 Only)`, 14, y);
+  y += 6;
+  doc.text(`Pipeline    : E-Nose Feature Extraction → ExtraTrees Classification`, 14, y);
+
+  // ── PREDICTION SUMMARY BOX ──
+  y += 14;
+  doc.setFontSize(12);
+  doc.setTextColor(...primary);
+  doc.text("AI Screening Result", 14, y);
+  doc.line(14, y + 2, pageWidth - 14, y + 2);
+
+  y += 8;
+  doc.setDrawColor(...primary);
+  doc.rect(14, y, pageWidth - 28, 32);
+
+  doc.setFontSize(11);
+  doc.setTextColor(...dark);
+  doc.text(`Classification : ${prediction}`, 18, y + 9);
+  doc.text(`Confidence     : ${fmt(stage1Result.confidence)}%`, 18, y + 17);
+  doc.text(`Risk Level     : ${advice.risk}`, 18, y + 25);
+
+  y += 40;
+
+  // ── PROBABILITY BREAKDOWN TABLE ──
+  if (stage1Result.probabilities) {
+    doc.setFontSize(12);
+    doc.setTextColor(...primary);
+    doc.text("Class Probability Breakdown", 14, y);
+
+    const probRows = Object.entries(stage1Result.probabilities).map(([k, v]) => [
+      k,
+      `${(Number(v.probability) * 100).toFixed(2)}%`,
+      v.tooltip || "—",
+    ]);
+
+    autoTable(doc, {
+      startY: y + 4,
+      head: [["Class", "Probability", "Interpretation"]],
+      body: probRows,
+      theme: "grid",
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: primary, textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: lightGray },
+      didDrawPage: () => { addHeader(); },
+    });
+
+    y = doc.lastAutoTable.finalY + 12;
+  }
+
+  // ── PAGE BREAK CHECK ──
+  const checkPageBreak = (needed) => {
+    if (y + needed > pageHeight - 20) {
+      doc.addPage();
+      addHeader();
+      y = 35;
+    }
+  };
+
+  // ── CLINICAL ADVICE ──
+  checkPageBreak(60);
+
+  doc.setFontSize(12);
+  doc.setTextColor(...primary);
+  doc.text(`Clinical Interpretation — ${advice.title}`, 14, y);
+  doc.setDrawColor(...primary);
+  doc.line(14, y + 2, pageWidth - 14, y + 2);
+
+  y += 10;
+  doc.setFontSize(9);
+  doc.setTextColor(...dark);
+
+  for (const note of advice.notes) {
+    checkPageBreak(8);
+    doc.text(note, 18, y);
+    y += 7;
+  }
+
+  // ── FOOTERS ──
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    addFooter();
+  }
+
+  doc.save(`MediSense_Lung_Stage1_${prediction}_Report.pdf`);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -588,6 +806,8 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
 const FieldInput = ({ name, onChange }) => {
   const meta = FIELD_META[name];
   const cfg  = LEVEL_CFG[meta.level];
+  const isRequired = meta.level !== "supporting" || REQUIRED_SUPPORTING.has(name);
+  const hasDefault = name in DEFAULT_VALUES;
 
   const inputCls = [
     "w-full py-2 px-3 text-sm rounded-lg border border-slate-200",
@@ -612,13 +832,13 @@ const FieldInput = ({ name, onChange }) => {
           <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.headerTxt}`}>
             {meta.label}
           </span>
-          <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${cfg.tagBg}`}>
-            {cfg.label}
+          <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${hasDefault ? "bg-emerald-50 text-emerald-700 border-emerald-200" : cfg.tagBg}`}>
+            {hasDefault ? "Optional" : cfg.label}
           </span>
         </div>
 
         {meta.type === "select" ? (
-          <select name={name} required onChange={onChange} defaultValue=""
+          <select name={name} required={isRequired} onChange={onChange} defaultValue=""
             className={`${inputCls} mb-1.5 border-0 bg-transparent focus:bg-white`}>
             <option value="" disabled>Select…</option>
             {meta.options.map((o) => (
@@ -630,7 +850,7 @@ const FieldInput = ({ name, onChange }) => {
             <input
               type="number" name={name} placeholder={`e.g. ${meta.min}`}
               min={meta.min} max={meta.max} step={meta.step}
-              required onChange={onChange}
+              required={isRequired} onChange={onChange}
               className={`${inputCls} border-0 bg-transparent focus:bg-white ${meta.unit ? "pr-14" : ""}`}
             />
             {meta.unit && (
@@ -723,7 +943,10 @@ const Lungs = () => {
 
   /* ── Validation ── */
   const validateClinical = () => {
-    for (const name of Object.keys(FIELD_META)) {
+    const requiredFields = Object.keys(FIELD_META).filter(
+      (name) => FIELD_META[name].level !== "supporting" || REQUIRED_SUPPORTING.has(name)
+    );
+    for (const name of requiredFields) {
       const v = clinicalData[name];
       if (v === undefined || v === null || (typeof v === "number" && isNaN(v))) {
         alert(`Please fill in: ${FIELD_META[name].label}`);
@@ -775,7 +998,8 @@ const Lungs = () => {
     if (!validateClinical()) return;
     setLoading(true);
     try {
-      const res = await axiosInstance.post("/lung/stage2", clinicalData, {
+      const payload = { ...DEFAULT_VALUES, ...clinicalData };
+      const res = await axiosInstance.post("/lung/stage2", payload, {
         headers: { "Content-Type": "application/json" },
       });
       setStage2Result(res.data);
@@ -899,7 +1123,12 @@ const Lungs = () => {
           <AnimatePresence>
             {stage1Result && (
               <motion.div key="s1r" initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
-                <Card accentColor={stage1Result.prediction === "COPD" ? "bg-red-500" : "bg-emerald-500"}>
+                <Card accentColor={
+                    stage1Result.prediction === "COPD" ? "bg-red-500"
+                    : stage1Result.prediction === "SMOKERS" ? "bg-amber-500"
+                    : stage1Result.prediction === "AIR" ? "bg-slate-400"
+                    : "bg-emerald-500"
+                  }>
                   <div className="flex items-center gap-2 mb-4">
                     <FileBarChart2 size={14} className="text-slate-400" />
                     <span className="text-xs text-slate-400 uppercase tracking-wide font-semibold">
@@ -910,8 +1139,12 @@ const Lungs = () => {
                   <div className="flex flex-wrap items-start gap-6 mb-5">
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Prediction</p>
-                      <p className={`font-sans text-2xl font-bold tracking-tight
-                        ${stage1Result.prediction === "COPD" ? "text-red-600" : "text-emerald-600"}`}>
+                      <p className={`font-sans text-2xl font-bold tracking-tight ${
+                        stage1Result.prediction === "COPD" ? "text-red-600"
+                        : stage1Result.prediction === "SMOKERS" ? "text-amber-600"
+                        : stage1Result.prediction === "AIR" ? "text-slate-500"
+                        : "text-emerald-600"
+                      }`}>
                         {stage1Result.prediction}
                       </p>
                     </div>
@@ -930,13 +1163,13 @@ const Lungs = () => {
                         <div key={label}>
                           <div className="flex justify-between text-xs text-slate-500 mb-1">
                             <span>{label}</span>
-                            <span className="font-mono font-semibold">{fmt(value)}%</span>
+                            <span className="font-mono font-semibold">{fmt(value.probability)}%</span>
                           </div>
                           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                             <motion.div
                               className="h-1.5 rounded-full bg-blue-500"
                               initial={{ width:0 }}
-                              animate={{ width:`${Number(value)*100}%` }}
+                              animate={{ width:`${Number(value.probability)*100}%` }}
                               transition={{ duration:0.7, ease:"easeOut" }}
                             />
                           </div>
@@ -945,13 +1178,72 @@ const Lungs = () => {
                     </div>
                   )}
 
+                  {/* Classification-specific clinical advice */}
                   {stage1Result.prediction === "COPD" && (
-                    <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50
-                                    border border-amber-200 rounded-lg px-3 py-2.5">
-                      <AlertTriangle size={12} className="flex-shrink-0 mt-0.5 text-amber-500" />
-                      <span>COPD signal detected — complete Stage 2 severity assessment below.</span>
+                    <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50
+                                    border border-red-200 rounded-lg px-3 py-2.5 mb-3">
+                      <AlertTriangle size={12} className="flex-shrink-0 mt-0.5 text-red-500" />
+                      <span>COPD signal detected — complete Stage 2 severity assessment below for GOLD staging.</span>
                     </div>
                   )}
+
+                  {stage1Result.prediction === "SMOKERS" && (
+                    <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50
+                                    border border-amber-200 rounded-lg px-3 py-2.5 mb-3">
+                      <AlertTriangle size={12} className="flex-shrink-0 mt-0.5 text-amber-500" />
+                      <div>
+                        <span className="font-semibold">Active smoker pattern detected.</span>
+                        <span> Smoking is the #1 risk factor for COPD — 15–20% of smokers develop COPD. 
+                        Cessation slows FEV₁ decline and reduces progression risk. 
+                        Annual spirometry screening recommended.</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {stage1Result.prediction === "CONTROL" && (
+                    <div className="flex items-start gap-2 text-xs text-emerald-700 bg-emerald-50
+                                    border border-emerald-200 rounded-lg px-3 py-2.5 mb-3">
+                      <CheckCircle2 size={12} className="flex-shrink-0 mt-0.5 text-emerald-500" />
+                      <span>Normal breath pattern — no COPD or smoking indicators detected. Continue routine health monitoring.</span>
+                    </div>
+                  )}
+
+                  {stage1Result.prediction === "AIR" && (
+                    <div className="flex items-start gap-2 text-xs text-slate-600 bg-slate-50
+                                    border border-slate-200 rounded-lg px-3 py-2.5 mb-3">
+                      <Info size={12} className="flex-shrink-0 mt-0.5 text-slate-400" />
+                      <span>Ambient air / reference sample detected. Please upload a patient breath sample for clinical analysis.</span>
+                    </div>
+                  )}
+
+                  {/* Stage 1 PDF Download */}
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                    <span className="text-xs text-slate-400 italic">
+                      Screening via breath acoustics · {new Date().toLocaleDateString("en-IN")}
+                    </span>
+                    <button
+                      onClick={() => generateStage1PDF(stage1Result)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "8px",
+                        border: "none",
+                        background: stage1Result.prediction === "COPD" ? "#dc2626"
+                          : stage1Result.prediction === "SMOKERS" ? "#d97706"
+                          : stage1Result.prediction === "AIR" ? "#64748b"
+                          : "#059669",
+                        color: "#fff",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "0.8rem",
+                      }}
+                    >
+                      <Download size={13} />
+                      Download Stage 1 Report
+                    </button>
+                  </div>
                 </Card>
               </motion.div>
             )}
@@ -1070,8 +1362,8 @@ const Lungs = () => {
                       </p>
                       <div className="space-y-2.5">
                         {Object.entries(stage2Result.probabilities).map(([label, value]) => {
-                          const pct = Number(value) * 100;
-                          const r   = riskOf(value);
+                          const pct = Number(value.probability) * 100;
+                          const r   = riskOf(value.probability);
                           return (
                             <div key={label} className="bg-slate-50 rounded-lg border border-slate-200 px-3 py-2.5">
                               <div className="flex justify-between text-xs mb-1.5">

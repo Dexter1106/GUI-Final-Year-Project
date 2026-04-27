@@ -755,10 +755,10 @@ function generatePDF() {
 
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.text("OnlyKidney AI Diagnostic Report", 14, 15);
+    doc.text("MediSense Kidney — Diagnostic Report", 14, 15);
 
     doc.setFontSize(10);
-    doc.text("AI-Powered Kidney Disease Prediction System", 14, 21);
+    doc.text("AI-Powered Kidney Disease Prediction System · MediSense", 14, 21);
 
     doc.setTextColor(...dark);
   };
@@ -888,7 +888,7 @@ function generatePDF() {
   // =========================
   // 💾 SAVE
   // =========================
-  doc.save("OnlyKidney_Report.pdf");
+  doc.save("MediSense_Kidney_Report.pdf");
 }
   function handleChange(e) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -978,8 +978,8 @@ for (let field of HIGH_FIELDS) {
           <div className="kd-header-grid" />
           <div className="kd-header-inner">
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-              <div className="kd-logo">Only<span>Kidney</span> AI</div>
-              <div className="kd-logo-sub">Disease Prediction · ML Pipeline · Feature Importance System</div>
+              <div className="kd-logo">Medi<span>Sense</span> Kidney</div>
+              <div className="kd-logo-sub">Kidney Disease Prediction · ML Pipeline · Feature Importance System</div>
               
             </motion.div>
           </div>
