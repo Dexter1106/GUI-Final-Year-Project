@@ -52,6 +52,9 @@ instance/
 *.sqlite3
 *.db
 
+# Machine Learning Models
+backend/ml_models/models_heartcsv/individual_models/stacking.pkl
+
 
 # =========================
 # IDE
