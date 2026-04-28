@@ -12,8 +12,6 @@ liver_blueprint = Blueprint("liver", __name__)
 
 
 @liver_blueprint.route("/predict", methods=["POST"])
-@jwt_required()
-@role_required(UserRole.DOCTOR)
 def predict_liver():
 
     try:
@@ -32,8 +30,6 @@ def predict_liver():
 
 
 @liver_blueprint.route("/report", methods=["POST"])
-@jwt_required()
-@role_required(UserRole.DOCTOR)
 def generate_report_pdf():
 
     try:

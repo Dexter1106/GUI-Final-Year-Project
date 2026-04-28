@@ -21,14 +21,14 @@ kidney_blueprint = Blueprint("kidney", __name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 MODEL_PATH = os.path.join(
-    BASE_DIR, "ml_models", "kidney_best_model.pkl"
+    BASE_DIR, "ml_models", "kidney_model", "all_ckd_models.pkl"
 )
 
-model = joblib.load(MODEL_PATH)
+models_dict = joblib.load(MODEL_PATH)
 
-# These are the ORIGINAL training columns (before OHE)
-FEATURE_ORDER = model.feature_names_in_
-
+# Use ANY one model to get feature order (all have same pipeline)
+sample_model = list(models_dict.values())[0]
+FEATURE_ORDER = sample_model.feature_names_in_
 
 # ================================================================
 # Core Prediction Logic
@@ -36,59 +36,71 @@ FEATURE_ORDER = model.feature_names_in_
 
 def predict_kidney_disease(input_data: dict) -> dict:
     """
-    Final, production-safe inference function.
+    Multi-model inference with confidence aggregation
     """
 
     df = pd.DataFrame([input_data])
 
-    # Enforce training column order
-    df = df.reindex(columns=model.feature_names_in_)
+    # Ensure correct column order
+    df = df.reindex(columns=FEATURE_ORDER)
 
-    # 🔥 FORCE categorical columns to STRING (CRITICAL)
-    preprocessor = model.named_steps["preprocessing"]
-    categorical_cols = preprocessor.transformers_[1][2]
+    all_results = {}
+    best_conf = -1
+    best_stage = None
 
-    for col in categorical_cols:
-        df[col] = df[col].astype(str)
 
-    # Predict
-    stage = int(model.predict(df)[0])
-    confidence = float(np.max(model.predict_proba(df)))
+    for name, model in models_dict.items():
 
+        try:
+            # Handle categorical conversion
+            preprocessor = model.named_steps["preprocessing"]
+            categorical_cols = preprocessor.transformers_[1][2]
+
+            for col in categorical_cols:
+                df[col] = df[col].astype(str)
+
+            pred = int(model.predict(df)[0])
+
+            # Handle models without predict_proba (like SVC sometimes)
+            if hasattr(model.named_steps["model"], "predict_proba"):
+                prob = model.predict_proba(df)
+                confidence = float(np.max(prob))
+            else:
+                confidence = 0.0  # fallback
+
+            all_results[name] = {
+                "stage": pred,
+                "confidence": round(confidence * 100, 2)
+            }
+
+            # Track best model
+            if confidence > best_conf:
+                best_conf = confidence
+                best_stage = pred
+
+        except Exception as e:
+            print(f"Error in model {name}:", e)
+
+    # ================================
+    # Final Decision (BEST MODEL)
+    # ================================
     stage_map = {
-        0: ("No Kidney Disease", "LOW", "NO TRANSPLANT REQUIRED (Treatment)"),
-        1: ("CKD Stage 1–2", "MEDIUM", "TREATMENT Required"),
-        2: ("CKD Stage 3", "HIGH", "TREATMENT Required"),
-        3: ("CKD Stage 4", "VERY HIGH", "TREATMENT REQUIRED"),
-        4: ("End Stage Renal Disease", "CRITICAL", "TRANSPLANT REQUIRED"),
+        1: ("No Kidney Disease", "LOW", "NO TRANSPLANT REQUIRED (Treatment)"),
+        2: ("CKD Stage 1–2", "MEDIUM", "TREATMENT Required"),
+        3: ("CKD Stage 3", "HIGH", "TREATMENT Required"),
+        4: ("CKD Stage 4", "VERY HIGH", "TREATMENT REQUIRED"),
+        5: ("End Stage Renal Disease", "CRITICAL", "TRANSPLANT REQUIRED"),
     }
 
-    disease, criticality, decision = stage_map[stage]
+    disease, criticality, decision = stage_map[best_stage]
 
     return {
         "organ": "KIDNEY",
-        # "stage": stage,
         "disease": disease,
         "criticality": criticality,
         "decision": decision,
-        "confidence": f"{confidence * 100:.2f}%"
+        "confidence": f"{best_conf * 100:.2f}%",
+        
+        # 🔥 NEW: Send all model outputs to frontend
+        "model_results": all_results
     }
-
-# ================================================================
-# API Route
-# ================================================================
-
-# @kidney_blueprint.route("/predict", methods=["POST"])
-# def predict():
-#     try:
-#         data = request.get_json()
-
-#         if not data:
-#             return jsonify({"error": "Empty input payload"}), 400
-
-#         result = predict_kidney_disease(data)
-#         return jsonify(result), 200
-
-#     except Exception as e:
-#         print("Kidney prediction error:", e)
-#         return jsonify({"error": str(e)}), 500

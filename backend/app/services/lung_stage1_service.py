@@ -3,11 +3,12 @@ import pandas as pd
 import numpy as np
 from app.utils.enose_feature_extraction import extract_enose_features
 from app.utils.tooltip_formatter import format_confidence_tooltip
+from app.services.lung_multimodel_service import run_all_stage1_models
 
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-MODEL_PATH = BASE_DIR / "ml_models" / "ExtraTreesS1.pkl"
+MODEL_PATH = BASE_DIR / "ml_models" / "lung_models" / "stage1_copd_ml" / "ExtraTrees.pkl"
 
 
 stage1_model = joblib.load(MODEL_PATH)
@@ -41,9 +42,13 @@ def predict_stage1(file):
     for i in range(len(probabilities))
 }
 
+    # Run all trained models for confidence comparison
+    model_confidences = run_all_stage1_models(features)
+
     return {
         "prediction": label_map[prediction],
         "confidence": confidence,
         "probabilities": probability_breakdown,
-        "meets_threshold": confidence >= STAGE1_CONF_THRESHOLD
+        "meets_threshold": confidence >= STAGE1_CONF_THRESHOLD,
+        "model_confidences": model_confidences,
     }

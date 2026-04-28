@@ -278,7 +278,7 @@ logger = logging.getLogger(__name__)
 # Structure: backend/ml_models/cirhosis/ and yesno/
 # -----------------------------------------------
 _ML = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                   "..", "..", "ml_models")
+                   "..", "..", "ml_models", "liver_models")
 
 def _load(rel_path: str):
     """Load a .pkl model using a path relative to the ml_models directory."""
@@ -296,6 +296,10 @@ model2 = _load("yesno/yesnoClfCirh.pkl")       # binary:  0=Early Liver Disease,
 scaler1 = _load("scalers/scaler1.pkl")
 scaler2 = _load("scalers/scaler_stage2.pkl")
 
+# Mapping prediction codes to human-readable labels for the consensus table
+STAGE1_LABELS = {0: "Healthy (to Stage 2)", 1: "Hepatitis", 2: "Fibrosis", 3: "Cirrhosis"}
+STAGE2_LABELS = {0: "Early Liver Disease", 1: "Healthy"}
+
 # ── Sub-models for Model 1 (cirhosis dataset — 4-class) ───────────────
 model1_sub = {
     "Logistic Regression": _load("cirhosis/LogisticCirh.pkl"),
@@ -304,6 +308,8 @@ model1_sub = {
     "KNN":                 _load("cirhosis/KNNCirh.pkl"),
     "Decision Tree":       _load("cirhosis/DecisionTreeCirh.pkl"),
     "Gradient Boosting":   _load("cirhosis/GradientBoostCirh.pkl"),
+    "Gaussian NB":         _load("cirhosis/GaussianNBCirh.pkl"),
+    "SVC":                 _load("cirhosis/SVCCirh.pkl"),
 }
 
 # ── Sub-models for Model 2 (ILPD dataset — binary) ────────────────────
@@ -315,6 +321,8 @@ model2_sub = {
     "Decision Tree":       _load("yesno/DecisionTreeClassifier.pkl"),
     "Gradient Boosting":   _load("yesno/GradientBoostingClassifier.pkl"),
     "AdaBoost":            _load("yesno/Adaboost.pkl"),
+    "Gaussian NB":         _load("yesno/GuassianNB.pkl"),
+    "SVC":                 _load("yesno/SVC.pkl"),
 }
 
 
@@ -338,24 +346,34 @@ def _calculate_ag_ratio(albumin: float, total_protein: float) -> float | None:
 # -----------------------------------------------
 # Utility: Sub-model confidence scores
 # -----------------------------------------------
-def _get_submodel_probabilities(models_dict: dict, input_array: np.ndarray) -> dict:
+def _get_submodel_results(models_dict: dict, input_array: np.ndarray, label_map: dict, primary_name: str = None) -> list:
     """
-    Collects the highest class probability from each sub-model (model's
-    confidence in its own prediction). Returns None for models that don't
-    support predict_proba (e.g. hard SVC).
+    Collects prediction and confidence from each sub-model.
+    Returns a list of dicts for the frontend consensus table.
     """
-    probs = {}
+    results = []
     for name, model in models_dict.items():
         try:
-            proba = model.predict_proba(input_array)[0]
-            probs[name] = round(float(max(proba)) * 100, 2)
-        except AttributeError:
-            logger.warning("Model '%s' does not support predict_proba.", name)
-            probs[name] = None
+            pred = int(model.predict(input_array)[0])
+            label = label_map.get(pred, f"Class {pred}")
+            
+            # Confidence
+            confidence = 0
+            if hasattr(model, "predict_proba"):
+                proba = model.predict_proba(input_array)[0]
+                confidence = round(float(max(proba)) * 100, 2)
+            
+            results.append({
+                "model_name": name,
+                "prediction": label,
+                "confidence": confidence,
+                "is_primary": name == primary_name
+            })
         except Exception as exc:
             logger.error("Error from model '%s': %s", name, exc)
-            probs[name] = None
-    return probs
+    
+    # Sort by confidence descending
+    return sorted(results, key=lambda x: x["confidence"], reverse=True)
 
 
 ####################################################################
@@ -434,15 +452,18 @@ def predict_liver_disease(input_data: dict) -> dict:
 ])
 
         pred1  = int(model1.predict(m1_input)[0])
-        probs1 = _get_submodel_probabilities(model1_sub, m1_input)
+        model_results = _get_submodel_results(model1_sub, m1_input, STAGE1_LABELS)
+        
+        # Primary confidence (from the first model in sorted results)
+        top_conf = model_results[0]["confidence"] if model_results else 0.0
 
         # ── Base result ───────────────────────────────────────────
         result = {
             "primary_diagnosis":      None,
             "hard_voting_prediction": pred1,
-            "model1_probabilities":   probs1,
+            "confidence":             f"{top_conf}%",
+            "model_results":          model_results,
             "secondary_model_used":   False,
-            "model2_probabilities":   None,
             "recommendation":         None,
         }
 
@@ -462,8 +483,11 @@ def predict_liver_disease(input_data: dict) -> dict:
             m2_input = scaler2.transform(m2_input)
 
             pred2  = int(model2.predict(m2_input)[0])
-            probs2 = _get_submodel_probabilities(model2_sub, m2_input)
-            result["model2_probabilities"] = probs2
+            model_results2 = _get_submodel_results(model2_sub, m2_input, STAGE2_LABELS)
+            
+            top_conf2 = model_results2[0]["confidence"] if model_results2 else 0.0
+            result["confidence"]    = f"{top_conf2}%"
+            result["model_results"] = model_results2
 
             if pred2 == 0:
                 result["primary_diagnosis"] = "Early Liver Disease"
@@ -848,11 +872,9 @@ def generate_report(patient_data, prediction_result: dict) -> dict:
             ),
         },
 
-        # "model_confidence": {
-        #     "model1_submodels": _build_model_confidence(model1_probs),
-        #     "model2_submodels": _build_model_confidence(model2_probs),
-        #     "active":           _build_model_confidence(active_probs),
-        # },
+        "model_confidence": {
+            "model_results": prediction_result.get("model_results"),
+        },
 
         "clinical_interpretation": CLINICAL_NOTES.get(
             disease, "Further clinical evaluation is required."
@@ -1111,44 +1133,48 @@ def _pdf_lab_section(report, styles):
 
 
 def _pdf_confidence_section(report, styles):
-    story  = [_section_heading("Model Confidence", styles)]
+    story  = [_section_heading("Model Confidence & Consensus", styles)]
     conf   = report.get("model_confidence", {})
-    active = conf.get("active", {})
+    models = conf.get("model_results", [])
 
-    # story.append(Paragraph(
-    #     # f"<b>Active Model Group:</b>  "
-    #     f"Average Confidence: <b>{active.get('average', '—')}%</b>  |  "
-    #     f"Agreement: <b>{active.get('agreement', '—')}</b>",
-    #     styles["body"]
-    # ))
+    if not models:
+        story.append(Paragraph("Consensus data not available for this evaluation.", styles["body"]))
+        return story
+
+    story.append(Paragraph(
+        "Individual machine learning models were run in parallel to verify the primary diagnosis. "
+        "The following table shows the confidence and prediction of each sub-model.",
+        styles["body"]
+    ))
     story.append(Spacer(1, 2*mm))
 
-    def _conf_table(label, conf_dict):
-        scores = conf_dict.get("scores", {})
-        if not scores:
-            return []
-        rows = [[
-            Paragraph(f"<b>{label}</b>", styles["body_bold"]),
-            Paragraph("<b>Confidence</b>", styles["body_bold"]),
-        ]]
-        for name, pct in scores.items():
-            rows.append([Paragraph(name, styles["body"]),
-                         Paragraph(f"{pct}%", styles["body"])])
-        t = Table(rows, colWidths=[90*mm, 35*mm])
-        t.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, 0), _LIGHT_TEAL),
-            ("GRID",          (0, 0), (-1, -1), 0.5, _MID_GREY),
-            ("TOPPADDING",    (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-        ]))
-        return [t, Spacer(1, 2*mm)]
+    header = [
+        Paragraph("<b>AI Sub-Model</b>", styles["body_bold"]),
+        Paragraph("<b>Prediction</b>",   styles["body_bold"]),
+        Paragraph("<b>Confidence</b>",   styles["body_bold"]),
+    ]
+    rows = [header]
 
-    story += _conf_table("Cirrhosis Model — Submodels", conf.get("model1_submodels", {}))
-    m2 = conf.get("model2_submodels", {})
-    if m2.get("scores"):
-        story += _conf_table("ILPD Early Assessment — Submodels", m2)
+    for i, m in enumerate(models, start=1):
+        is_primary = m.get("is_primary", False)
+        name = f"<b>{m.get('model_name')}</b> (Primary)" if is_primary else m.get("model_name")
+        
+        rows.append([
+            Paragraph(name, styles["body"]),
+            Paragraph(m.get("prediction", "—"), styles["body"]),
+            Paragraph(f"{m.get('confidence', 0)}%", styles["body"]),
+        ])
 
+    t = Table(rows, colWidths=[80*mm, 60*mm, 40*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, 0), _NAVY),
+        ("TEXTCOLOR",     (0, 0), (-1, 0), _WHITE),
+        ("GRID",          (0, 0), (-1, -1), 0.5, _MID_GREY),
+        ("TOPPADDING",    (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+    ]))
+    story.append(t)
     story.append(Spacer(1, 4*mm))
     return story
 
@@ -1290,7 +1316,7 @@ def generate_pdf_from_report(report: dict) -> bytes:
     story += _pdf_patient_section(report, styles)
     story += _pdf_diagnosis_section(report, styles)
     story += _pdf_lab_section(report, styles)
-    # story += _pdf_confidence_section(report, styles)
+    story += _pdf_confidence_section(report, styles)
     story += _pdf_clinical_section(report, styles)
     story += _pdf_severity_section(report, styles)     # renders only for Cirrhosis
     story += _pdf_recommendation_section(report, styles)

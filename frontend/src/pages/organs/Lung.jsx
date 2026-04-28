@@ -8,9 +8,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  UploadCloud, Loader2, Info, ChevronRight,
+  UploadCloud, Loader2, Info, ChevronRight, ChevronDown,
   Activity, Download, AlertTriangle, CheckCircle2,
-  Wind, FileBarChart2, Stethoscope,
+  Wind, FileBarChart2, Stethoscope, Trophy, BarChart3,
 } from "lucide-react";
 import axiosInstance from "../../api/axiosInstance";
 import Navbar from "../../components/Navbar";
@@ -27,10 +27,10 @@ const FIELD_META = {
     type: "select",
     options: [
       { label: "0 — Breathless only with strenuous exercise", value: 0 },
-      { label: "1 — Short of breath hurrying / slight incline",  value: 1 },
-      { label: "2 — Walks slower than peers / stops on flat",    value: 2 },
-      { label: "3 — Stops after ~100 m or few minutes walking",  value: 3 },
-      { label: "4 — Too breathless to leave house / dressing",   value: 4 },
+      { label: "1 — Short of breath hurrying / slight incline", value: 1 },
+      { label: "2 — Walks slower than peers / stops on flat", value: 2 },
+      { label: "3 — Stops after ~100 m or few minutes walking", value: 3 },
+      { label: "4 — Too breathless to leave house / dressing", value: 4 },
     ],
     tooltip: {
       why: "Primary dyspnea severity score. mMRC ≥ 2 = high symptom burden (GOLD Groups B/E).",
@@ -82,7 +82,7 @@ const FIELD_META = {
     type: "select",
     options: [
       { label: "Industrial / High Dust / Fumes", value: 1 },
-      { label: "Non-Industrial",                  value: 0 },
+      { label: "Non-Industrial", value: 0 },
     ],
     tooltip: {
       why: "Occupational dust, fumes & chemicals account for ~15 % of COPD cases.",
@@ -157,8 +157,8 @@ const FIELD_META = {
     label: "Smoking Status",
     type: "select",
     options: [
-      { label: "Current Smoker",          value: 1 },
-      { label: "Non-Smoker / Ex-Smoker",  value: 0 },
+      { label: "Current Smoker", value: 1 },
+      { label: "Non-Smoker / Ex-Smoker", value: 0 },
     ],
     tooltip: {
       why: "Smoking is the #1 modifiable risk factor. Cessation slows FEV₁ decline.",
@@ -242,7 +242,7 @@ const FIELD_META = {
     type: "select",
     options: [
       { label: "Dependent (ADL assist needed)", value: 1 },
-      { label: "Independent",                   value: 0 },
+      { label: "Independent", value: 0 },
     ],
     tooltip: {
       why: "Functional dependence marks advanced disease and frailty syndrome.",
@@ -271,15 +271,15 @@ const FIELD_META = {
    (same pattern as Kidney.jsx DEFAULT_VALUES)
 ═══════════════════════════════════════════════════ */
 const DEFAULT_VALUES = {
-  "BMI, kg/m2":               22.0,   // mid-range healthy BMI (18.5–24.9)
-  "Pack History":             0,      // zero tobacco exposure
-  "status of smoking":        0,      // non-smoker / ex-smoker
-  "Depression":               0,      // absent
-  "History of Heart Failure":  0,      // absent
-  "Sputum":                   0,      // no purulent sputum
-  "Vaccination":              1,      // vaccinated (optimistic baseline)
-  "Dependent":                0,      // functionally independent
-  "Height/m":                 1.70,   // average adult height
+  "BMI, kg/m2": 22.0,   // mid-range healthy BMI (18.5–24.9)
+  "Pack History": 0,      // zero tobacco exposure
+  "status of smoking": 0,      // non-smoker / ex-smoker
+  "Depression": 0,      // absent
+  "History of Heart Failure": 0,      // absent
+  "Sputum": 0,      // no purulent sputum
+  "Vaccination": 1,      // vaccinated (optimistic baseline)
+  "Dependent": 0,      // functionally independent
+  "Height/m": 1.70,   // average adult height
 };
 
 /* Fields that are required even though they are "supporting" level */
@@ -290,34 +290,34 @@ const REQUIRED_SUPPORTING = new Set(["Age", "Gender"]);
 ═══════════════════════════════════════════════════ */
 const LEVEL_CFG = {
   critical: {
-    strip:      "bg-red-500",
-    ring:       "ring-red-200 focus-within:ring-red-400",
-    inputBg:    "bg-red-50",
-    dot:        "bg-red-400",
-    tagBg:      "bg-red-50 text-red-700 border-red-200",
-    headerTxt:  "text-red-600",
-    headerBg:   "bg-red-50 border-red-100",
-    label:      "Critical",
+    strip: "bg-red-500",
+    ring: "ring-red-200 focus-within:ring-red-400",
+    inputBg: "bg-red-50",
+    dot: "bg-red-400",
+    tagBg: "bg-red-50 text-red-700 border-red-200",
+    headerTxt: "text-red-600",
+    headerBg: "bg-red-50 border-red-100",
+    label: "Critical",
   },
   key: {
-    strip:      "bg-amber-400",
-    ring:       "ring-amber-200 focus-within:ring-amber-400",
-    inputBg:    "bg-amber-50",
-    dot:        "bg-amber-400",
-    tagBg:      "bg-amber-50 text-amber-700 border-amber-200",
-    headerTxt:  "text-amber-700",
-    headerBg:   "bg-amber-50 border-amber-100",
-    label:      "Key",
+    strip: "bg-amber-400",
+    ring: "ring-amber-200 focus-within:ring-amber-400",
+    inputBg: "bg-amber-50",
+    dot: "bg-amber-400",
+    tagBg: "bg-amber-50 text-amber-700 border-amber-200",
+    headerTxt: "text-amber-700",
+    headerBg: "bg-amber-50 border-amber-100",
+    label: "Key",
   },
   supporting: {
-    strip:      "bg-blue-500",
-    ring:       "ring-blue-200 focus-within:ring-blue-400",
-    inputBg:    "bg-blue-50",
-    dot:        "bg-blue-400",
-    tagBg:      "bg-blue-50 text-blue-700 border-blue-100",
-    headerTxt:  "text-blue-700",
-    headerBg:   "bg-blue-50 border-blue-100",
-    label:      "Supporting",
+    strip: "bg-blue-500",
+    ring: "ring-blue-200 focus-within:ring-blue-400",
+    inputBg: "bg-blue-50",
+    dot: "bg-blue-400",
+    tagBg: "bg-blue-50 text-blue-700 border-blue-100",
+    headerTxt: "text-blue-700",
+    headerBg: "bg-blue-50 border-blue-100",
+    label: "Supporting",
   },
 };
 
@@ -339,28 +339,28 @@ const fmt = (v) => {
 const riskOf = (confidence) => {
   const c = Number(confidence);
   if (c > 0.75) return {
-    color:   "text-red-600",
-    barBg:   "bg-red-500",
+    color: "text-red-600",
+    barBg: "bg-red-500",
     badgeBg: "bg-red-50 text-red-700 border-red-200",
-    strip:   "bg-red-500",
-    label:   "High Risk",
-    sub:     "Immediate Clinical Attention Recommended",
+    strip: "bg-red-500",
+    label: "High Risk",
+    sub: "Immediate Clinical Attention Recommended",
   };
   if (c > 0.5) return {
-    color:   "text-amber-600",
-    barBg:   "bg-amber-400",
+    color: "text-amber-600",
+    barBg: "bg-amber-400",
     badgeBg: "bg-amber-50 text-amber-700 border-amber-200",
-    strip:   "bg-amber-400",
-    label:   "Moderate Risk",
-    sub:     "Medical Evaluation Suggested",
+    strip: "bg-amber-400",
+    label: "Moderate Risk",
+    sub: "Medical Evaluation Suggested",
   };
   return {
-    color:   "text-emerald-600",
-    barBg:   "bg-emerald-500",
+    color: "text-emerald-600",
+    barBg: "bg-emerald-500",
     badgeBg: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    strip:   "bg-emerald-500",
-    label:   "Low Risk",
-    sub:     "Routine Monitoring Recommended",
+    strip: "bg-emerald-500",
+    label: "Low Risk",
+    sub: "Routine Monitoring Recommended",
   };
 };
 
@@ -378,12 +378,12 @@ const getSelectLabel = (fieldName, value) => {
 function generatePDF(clinicalData, stage1Result, stage2Result) {
   const doc = new jsPDF();
 
-  const primary   = [13, 148, 136];   // teal-600 — lung theme
+  const primary = [13, 148, 136];   // teal-600 — lung theme
   const lightGray = [240, 240, 240];
-  const dark      = [40, 40, 40];
+  const dark = [40, 40, 40];
 
   const pageHeight = doc.internal.pageSize.height;
-  const pageWidth  = doc.internal.pageSize.width;
+  const pageWidth = doc.internal.pageSize.width;
 
   // ── HEADER (reusable, called on every new page) ──
   const addHeader = () => {
@@ -457,8 +457,8 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
     if (stage1Result.probabilities) {
       const entries = Object.entries(stage1Result.probabilities);
       const probStr = entries.map(([k, v]) => `${k}: ${fmt(v.probability)}%`).join("   |   ");
-      doc.setFontSize(9);
-      doc.setTextColor(80);
+      doc.setFontSize(10);
+      doc.setTextColor(...dark);
       doc.text(`Probabilities : ${probStr}`, 18, y + 22);
     }
 
@@ -476,8 +476,8 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
   doc.text("Stage 2 — Clinical Parameters", 14, y);
 
   const grouped = {
-    critical:   Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "critical"),
-    key:        Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "key"),
+    critical: Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "critical"),
+    key: Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "key"),
     supporting: Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "supporting"),
   };
 
@@ -485,16 +485,16 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
   const tableBody = [];
 
   const LEVEL_ROWS = [
-    { key: "critical",   header: "🔴 CRITICAL PARAMETERS", color: [239, 68, 68] },
-    { key: "key",        header: "🟡 KEY PARAMETERS",      color: [245, 158, 11] },
+    { key: "critical", header: "🔴 CRITICAL PARAMETERS", color: [239, 68, 68] },
+    { key: "key", header: "🟡 KEY PARAMETERS", color: [245, 158, 11] },
     { key: "supporting", header: "🔵 SUPPORTING PARAMETERS", color: [59, 130, 246] },
   ];
 
   for (const { key, header, color } of LEVEL_ROWS) {
     tableBody.push([{ content: header, colSpan: 3, styles: { fillColor: color, textColor: 255, fontStyle: "bold", fontSize: 8 } }]);
     for (const fieldKey of grouped[key]) {
-      const meta      = FIELD_META[fieldKey];
-      const rawVal    = clinicalData[fieldKey];
+      const meta = FIELD_META[fieldKey];
+      const rawVal = clinicalData[fieldKey];
       const displayed = meta.type === "select"
         ? getSelectLabel(fieldKey, rawVal)
         : (rawVal !== undefined && rawVal !== null ? String(rawVal) + (meta.unit ? ` ${meta.unit}` : "") : "N/A");
@@ -552,8 +552,8 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
     if (stage2Result.probabilities) {
       const entries = Object.entries(stage2Result.probabilities);
       const probStr = entries.map(([k, v]) => `${k}: ${fmt(v.probability)}%`).join("   |   ");
-      doc.setFontSize(8.5);
-      doc.setTextColor(80);
+      doc.setFontSize(10);
+      doc.setTextColor(...dark);
       doc.text(`Probabilities : ${probStr}`, 18, finalY + 41);
     }
   } else {
@@ -563,6 +563,47 @@ function generatePDF(clinicalData, stage1Result, stage2Result) {
   }
 
   finalY += 60;
+
+  // ── MODEL CONSENSUS TABLE (Stage 1 + Stage 2) ──
+  const allModelConfs = [
+    ...(stage1Result?.model_confidences || []).map((m) => ({ ...m, stage: "S1" })),
+    ...(stage2Result?.model_confidences || []).map((m) => ({ ...m, stage: "S2" })),
+  ];
+
+  if (allModelConfs.length > 0) {
+    checkPageBreak(50);
+    doc.setFontSize(12);
+    doc.setTextColor(...primary);
+    doc.text("Model Confidence Consensus", 14, finalY);
+    doc.line(14, finalY + 2, pageWidth - 14, finalY + 2);
+
+    const consensusRows = allModelConfs.map((m) => [
+      m.stage,
+      (m.is_primary ? "\u2605 " : "") + m.model_name,
+      m.error ? "Error" : m.prediction,
+      m.confidence != null ? `${(m.confidence * 100).toFixed(1)}%` : "N/A",
+    ]);
+
+    autoTable(doc, {
+      startY: finalY + 4,
+      margin: { top: 35 },
+      head: [["Stage", "Model", "Prediction", "Confidence"]],
+      body: consensusRows,
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: primary, textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: lightGray },
+      didDrawPage: () => { addHeader(); },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.cell.raw && typeof data.cell.raw === "string" && data.cell.raw.startsWith("\u2605")) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.textColor = [67, 56, 202];
+        }
+      },
+    });
+
+    finalY = doc.lastAutoTable.finalY + 10;
+  }
 
   // ── CLINICAL INTERPRETATION NOTES ──
   checkPageBreak(40);
@@ -666,12 +707,12 @@ function generateStage1PDF(stage1Result) {
   const prediction = stage1Result.prediction || "CONTROL";
   const advice = STAGE1_ADVICE[prediction] || STAGE1_ADVICE.CONTROL;
 
-  const primary   = advice.color;
+  const primary = advice.color;
   const lightGray = [240, 240, 240];
-  const dark      = [40, 40, 40];
+  const dark = [40, 40, 40];
 
   const pageHeight = doc.internal.pageSize.height;
-  const pageWidth  = doc.internal.pageSize.width;
+  const pageWidth = doc.internal.pageSize.width;
 
   // ── HEADER ──
   const addHeader = () => {
@@ -790,6 +831,44 @@ function generateStage1PDF(stage1Result) {
     y += 7;
   }
 
+  // ── MODEL CONSENSUS TABLE ──
+  if (stage1Result.model_confidences && stage1Result.model_confidences.length > 0) {
+    y += 8;
+    checkPageBreak(50);
+
+    doc.setFontSize(12);
+    doc.setTextColor(...primary);
+    doc.text("Model Confidence Consensus", 14, y);
+    doc.setDrawColor(...primary);
+    doc.line(14, y + 2, pageWidth - 14, y + 2);
+
+    const consensusRows = stage1Result.model_confidences.map((m) => [
+      (m.is_primary ? "\u2605 " : "") + m.model_name,
+      m.error ? "Error" : m.prediction,
+      m.confidence != null ? `${(m.confidence * 100).toFixed(1)}%` : "N/A",
+    ]);
+
+    autoTable(doc, {
+      startY: y + 4,
+      margin: { top: 35 },
+      head: [["Model", "Prediction", "Confidence"]],
+      body: consensusRows,
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: primary, textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: lightGray },
+      didDrawPage: () => { addHeader(); },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.cell.raw && typeof data.cell.raw === "string" && data.cell.raw.startsWith("\u2605")) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.textColor = [67, 56, 202];
+        }
+      },
+    });
+
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
   // ── FOOTERS ──
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
@@ -805,7 +884,7 @@ function generateStage1PDF(stage1Result) {
 ═══════════════════════════════════════════════════ */
 const FieldInput = ({ name, onChange }) => {
   const meta = FIELD_META[name];
-  const cfg  = LEVEL_CFG[meta.level];
+  const cfg = LEVEL_CFG[meta.level];
   const isRequired = meta.level !== "supporting" || REQUIRED_SUPPORTING.has(name);
   const hasDefault = name in DEFAULT_VALUES;
 
@@ -814,8 +893,8 @@ const FieldInput = ({ name, onChange }) => {
     "text-slate-800 placeholder-slate-400",
     "focus:outline-none focus:ring-2 focus:ring-offset-0",
     meta.level === "critical" ? "focus:ring-red-300"
-    : meta.level === "key"    ? "focus:ring-amber-300"
-    : "focus:ring-blue-300",
+      : meta.level === "key" ? "focus:ring-amber-300"
+        : "focus:ring-blue-300",
     "transition-all bg-white",
   ].join(" ");
 
@@ -823,11 +902,10 @@ const FieldInput = ({ name, onChange }) => {
     <div className="relative group">
       <div className={`absolute left-0 top-0 bottom-0 w-0.5 rounded-l-lg ${cfg.strip}`} />
 
-      <div className={`pl-2.5 rounded-lg border ${
-        meta.level === "critical" ? "border-red-100 bg-red-50/40"
-        : meta.level === "key"    ? "border-amber-100 bg-amber-50/40"
-        : "border-blue-100 bg-blue-50/30"
-      }`}>
+      <div className={`pl-2.5 rounded-lg border ${meta.level === "critical" ? "border-red-100 bg-red-50/40"
+          : meta.level === "key" ? "border-amber-100 bg-amber-50/40"
+            : "border-blue-100 bg-blue-50/30"
+        }`}>
         <div className="flex items-center justify-between px-1 pt-1.5 pb-0.5">
           <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.headerTxt}`}>
             {meta.label}
@@ -906,7 +984,7 @@ const Card = ({ children, className = "", accentColor = "bg-teal-500" }) => (
 
 const LayerLabel = ({ step, color = "text-slate-400", children }) => (
   <div className="flex items-center gap-3 mb-5">
-    <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 ${color.replace("text-","border-")}
+    <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 ${color.replace("text-", "border-")}
                      flex items-center justify-center font-bold text-xs font-mono ${color}`}>
       {step}
     </div>
@@ -930,16 +1008,180 @@ const GroupHeader = ({ level, label, count }) => {
 };
 
 /* ═══════════════════════════════════════════════════
+   MODEL CONFIDENCE TABLE COMPONENT
+═══════════════════════════════════════════════════ */
+const ModelConfidenceTable = ({ models, expanded, onToggle, stageName = "Stage 1" }) => {
+  if (!models || models.length === 0) return null;
+
+  const primaryModel = models.find((m) => m.is_primary);
+  const primaryPred = primaryModel?.prediction;
+  const validModels = models.filter((m) => !m.error);
+  const agreementCount = validModels.filter((m) => m.prediction === primaryPred).length;
+
+  const predColor = (pred) => {
+    if (!pred || pred === "Error") return "text-slate-400 bg-slate-50 border-slate-200";
+    if (pred === "COPD" || pred.includes("3") || pred.includes("4"))
+      return "text-red-700 bg-red-50 border-red-200";
+    if (pred === "SMOKERS" || pred.includes("2"))
+      return "text-amber-700 bg-amber-50 border-amber-200";
+    return "text-emerald-700 bg-emerald-50 border-emerald-200";
+  };
+
+  const barColor = (confidence, pred, isPrimary) => {
+    if (!confidence) return "bg-slate-300";
+    if (isPrimary) return "bg-indigo-500";
+    if (pred === primaryPred) return "bg-teal-500";
+    return "bg-slate-400";
+  };
+
+  return (
+    <div className="mt-5 border-t border-slate-100 pt-4">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between gap-3 px-3 py-2.5
+                   bg-gradient-to-r from-indigo-50 via-slate-50 to-teal-50
+                   border border-slate-200 rounded-xl hover:shadow-sm transition-all group"
+      >
+        <div className="flex items-center gap-2.5">
+          <BarChart3 size={15} className="text-indigo-500" />
+          <span className="text-sm font-bold text-slate-800">
+            Model Confidence Comparison
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-semibold border border-indigo-200">
+            {validModels.length} models
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold border
+                          bg-teal-50 text-teal-700 border-teal-200">
+            {agreementCount}/{validModels.length} agree
+          </span>
+          <ChevronDown
+            size={14}
+            className={`text-slate-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""
+              }`}
+          />
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            key="model-table"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="overflow-hidden"
+          >
+            <div className="mt-3 space-y-1.5">
+              {/* Header */}
+              <div className="grid grid-cols-12 gap-2 px-3 py-1.5 text-xs text-slate-400
+                              uppercase tracking-wide font-semibold">
+                <div className="col-span-4">Model</div>
+                <div className="col-span-2 text-center">Prediction</div>
+                <div className="col-span-6">Confidence</div>
+              </div>
+
+              {/* Rows */}
+              {models.map((m, idx) => {
+                const conf = m.confidence != null ? (m.confidence * 100) : null;
+                return (
+                  <motion.div
+                    key={m.model_name}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.03, duration: 0.2 }}
+                    className={`grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-lg border transition-all ${m.is_primary
+                        ? "bg-indigo-50/70 border-indigo-200 shadow-sm"
+                        : m.prediction === primaryPred
+                          ? "bg-teal-50/40 border-teal-100"
+                          : m.error
+                            ? "bg-red-50/30 border-red-100"
+                            : "bg-white border-slate-100 hover:bg-slate-50"
+                      }`}
+                  >
+                    {/* Model Name */}
+                    <div className="col-span-4 flex items-center gap-1.5 min-w-0">
+                      {m.is_primary && (
+                        <Trophy size={12} className="text-indigo-500 flex-shrink-0" />
+                      )}
+                      <span className={`text-xs font-semibold truncate ${m.is_primary ? "text-indigo-700" : "text-slate-700"
+                        }`}>
+                        {m.model_name}
+                      </span>
+                      {m.is_primary && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100
+                                         text-indigo-600 font-bold border border-indigo-200
+                                         flex-shrink-0 leading-none">
+                          BEST
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Prediction Badge */}
+                    <div className="col-span-2 flex justify-center">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border
+                                        font-bold leading-tight ${predColor(m.prediction)}`}>
+                        {m.error ? "ERR" : m.prediction}
+                      </span>
+                    </div>
+
+                    {/* Confidence Bar */}
+                    <div className="col-span-6 flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                        <motion.div
+                          className={`h-2 rounded-full ${barColor(m.confidence, m.prediction, m.is_primary)}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: conf != null ? `${conf}%` : "0%" }}
+                          transition={{ duration: 0.6, delay: idx * 0.03, ease: "easeOut" }}
+                        />
+                      </div>
+                      <span className={`text-xs font-mono font-bold w-12 text-right ${m.is_primary ? "text-indigo-600"
+                          : conf != null && conf > 75 ? "text-slate-800"
+                            : "text-slate-500"
+                        }`}>
+                        {conf != null ? `${conf.toFixed(1)}%` : "N/A"}
+                      </span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+
+              {/* Summary Footer */}
+              <div className="flex items-center justify-between px-3 pt-2 mt-1
+                              border-t border-slate-100 text-xs text-slate-400">
+                <span>
+                  ★ Primary model: <span className="font-semibold text-indigo-600">ExtraTrees</span>
+                </span>
+                <span className="italic">
+                  {agreementCount === validModels.length
+                    ? "All models unanimous ✓"
+                    : `${validModels.length - agreementCount} model(s) disagree`}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════ */
 const Lungs = () => {
-  const [breathFile, setBreathFile]     = useState(null);
+  const [breathFile, setBreathFile] = useState(null);
   const [clinicalData, setClinicalData] = useState({});
   const [stage1Result, setStage1Result] = useState(null);
   const [stage2Result, setStage2Result] = useState(null);
-  const [showStage2, setShowStage2]     = useState(false);
-  const [loading, setLoading]           = useState(false);
-  const [dragOver, setDragOver]         = useState(false);
+  const [showStage2, setShowStage2] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [showS1Models, setShowS1Models] = useState(false);
+  const [showS2Models, setShowS2Models] = useState(false);
 
   /* ── Validation ── */
   const validateClinical = () => {
@@ -1018,8 +1260,8 @@ const Lungs = () => {
   const risk = stage2Result ? riskOf(stage2Result.confidence) : null;
 
   const grouped = {
-    critical:   Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "critical"),
-    key:        Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "key"),
+    critical: Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "critical"),
+    key: Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "key"),
     supporting: Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "supporting"),
   };
 
@@ -1031,7 +1273,7 @@ const Lungs = () => {
         <main className="max-w-5xl mx-auto px-4 py-10 space-y-5">
 
           {/* ── PAGE HEADER ── */}
-          <motion.div initial={{ opacity:0, y:-14 }} animate={{ opacity:1, y:0 }}>
+          <motion.div initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }}>
             <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -1061,7 +1303,7 @@ const Lungs = () => {
           </motion.div>
 
           {/* ── STAGE 1 ── */}
-          <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.05 }}>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
             <Card accentColor="bg-blue-500">
               <LayerLabel step="01" color="text-blue-500">
                 <span className="font-sans font-bold text-slate-900 text-sm leading-tight">
@@ -1079,8 +1321,8 @@ const Lungs = () => {
                     ${dragOver
                       ? "border-blue-400 bg-blue-50"
                       : breathFile
-                      ? "border-teal-400 bg-teal-50"
-                      : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 bg-slate-50"
+                        ? "border-teal-400 bg-teal-50"
+                        : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 bg-slate-50"
                     }`}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
@@ -1122,13 +1364,13 @@ const Lungs = () => {
           {/* Stage 1 Result */}
           <AnimatePresence>
             {stage1Result && (
-              <motion.div key="s1r" initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
+              <motion.div key="s1r" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <Card accentColor={
-                    stage1Result.prediction === "COPD" ? "bg-red-500"
+                  stage1Result.prediction === "COPD" ? "bg-red-500"
                     : stage1Result.prediction === "SMOKERS" ? "bg-amber-500"
-                    : stage1Result.prediction === "AIR" ? "bg-slate-400"
-                    : "bg-emerald-500"
-                  }>
+                      : stage1Result.prediction === "AIR" ? "bg-slate-400"
+                        : "bg-emerald-500"
+                }>
                   <div className="flex items-center gap-2 mb-4">
                     <FileBarChart2 size={14} className="text-slate-400" />
                     <span className="text-xs text-slate-400 uppercase tracking-wide font-semibold">
@@ -1139,12 +1381,11 @@ const Lungs = () => {
                   <div className="flex flex-wrap items-start gap-6 mb-5">
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Prediction</p>
-                      <p className={`font-sans text-2xl font-bold tracking-tight ${
-                        stage1Result.prediction === "COPD" ? "text-red-600"
-                        : stage1Result.prediction === "SMOKERS" ? "text-amber-600"
-                        : stage1Result.prediction === "AIR" ? "text-slate-500"
-                        : "text-emerald-600"
-                      }`}>
+                      <p className={`font-sans text-2xl font-bold tracking-tight ${stage1Result.prediction === "COPD" ? "text-red-600"
+                          : stage1Result.prediction === "SMOKERS" ? "text-amber-600"
+                            : stage1Result.prediction === "AIR" ? "text-slate-500"
+                              : "text-emerald-600"
+                        }`}>
                         {stage1Result.prediction}
                       </p>
                     </div>
@@ -1168,15 +1409,23 @@ const Lungs = () => {
                           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                             <motion.div
                               className="h-1.5 rounded-full bg-blue-500"
-                              initial={{ width:0 }}
-                              animate={{ width:`${Number(value.probability)*100}%` }}
-                              transition={{ duration:0.7, ease:"easeOut" }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Number(value.probability) * 100}%` }}
+                              transition={{ duration: 0.7, ease: "easeOut" }}
                             />
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
+
+                  {/* Model Confidence Comparison — Stage 1 */}
+                  <ModelConfidenceTable
+                    models={stage1Result.model_confidences}
+                    expanded={showS1Models}
+                    onToggle={() => setShowS1Models((p) => !p)}
+                    stageName="Stage 1"
+                  />
 
                   {/* Classification-specific clinical advice */}
                   {stage1Result.prediction === "COPD" && (
@@ -1193,9 +1442,9 @@ const Lungs = () => {
                       <AlertTriangle size={12} className="flex-shrink-0 mt-0.5 text-amber-500" />
                       <div>
                         <span className="font-semibold">Active smoker pattern detected.</span>
-                        <span> Smoking is the #1 risk factor for COPD — 15–20% of smokers develop COPD. 
-                        Cessation slows FEV₁ decline and reduces progression risk. 
-                        Annual spirometry screening recommended.</span>
+                        <span> Smoking is the #1 risk factor for COPD — 15–20% of smokers develop COPD.
+                          Cessation slows FEV₁ decline and reduces progression risk.
+                          Annual spirometry screening recommended.</span>
                       </div>
                     </div>
                   )}
@@ -1229,8 +1478,8 @@ const Lungs = () => {
                         border: "none",
                         background: stage1Result.prediction === "COPD" ? "#dc2626"
                           : stage1Result.prediction === "SMOKERS" ? "#d97706"
-                          : stage1Result.prediction === "AIR" ? "#64748b"
-                          : "#059669",
+                            : stage1Result.prediction === "AIR" ? "#64748b"
+                              : "#059669",
                         color: "#fff",
                         fontWeight: "600",
                         cursor: "pointer",
@@ -1252,7 +1501,7 @@ const Lungs = () => {
           {/* ── STAGE 2 FORM ── */}
           <AnimatePresence>
             {showStage2 && (
-              <motion.div key="s2form" initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
+              <motion.div key="s2form" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <Card accentColor="bg-gradient-to-r from-blue-500 via-amber-400 to-red-500">
                   <LayerLabel step="02" color="text-teal-600">
                     <span className="font-syne font-bold text-slate-900 text-sm leading-tight">
@@ -1265,7 +1514,7 @@ const Lungs = () => {
 
                   {/* Legend */}
                   <div className="flex flex-wrap items-center gap-2 mb-5 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    {(["critical","key","supporting"]).map((lv) => (
+                    {(["critical", "key", "supporting"]).map((lv) => (
                       <div key={lv} className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full ${LEVEL_CFG[lv].dot}`} />
                         <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${LEVEL_CFG[lv].tagBg}`}>
@@ -1324,7 +1573,7 @@ const Lungs = () => {
           {/* ── STAGE 2 RESULT ── */}
           <AnimatePresence>
             {stage2Result && risk && (
-              <motion.div key="s2r" initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
+              <motion.div key="s2r" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <Card accentColor={risk.strip}>
                   <div className="flex items-center gap-2 mb-5">
                     <Stethoscope size={14} className="text-slate-400" />
@@ -1363,7 +1612,7 @@ const Lungs = () => {
                       <div className="space-y-2.5">
                         {Object.entries(stage2Result.probabilities).map(([label, value]) => {
                           const pct = Number(value.probability) * 100;
-                          const r   = riskOf(value.probability);
+                          const r = riskOf(value.probability);
                           return (
                             <div key={label} className="bg-slate-50 rounded-lg border border-slate-200 px-3 py-2.5">
                               <div className="flex justify-between text-xs mb-1.5">
@@ -1375,9 +1624,9 @@ const Lungs = () => {
                               <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                                 <motion.div
                                   className={`h-1.5 rounded-full ${r.barBg}`}
-                                  initial={{ width:0 }}
+                                  initial={{ width: 0 }}
                                   animate={{ width: isNaN(pct) ? "0%" : `${pct}%` }}
-                                  transition={{ duration:0.7, ease:"easeOut" }}
+                                  transition={{ duration: 0.7, ease: "easeOut" }}
                                 />
                               </div>
                             </div>
@@ -1386,6 +1635,14 @@ const Lungs = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Model Confidence Comparison — Stage 2 */}
+                  <ModelConfidenceTable
+                    models={stage2Result.model_confidences}
+                    expanded={showS2Models}
+                    onToggle={() => setShowS2Models((p) => !p)}
+                    stageName="Stage 2"
+                  />
 
                   {/* PDF download button — mirrors Kidney.jsx style */}
                   <div className="flex justify-between items-center pt-4 border-t border-slate-100">

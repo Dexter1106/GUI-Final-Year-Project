@@ -4,10 +4,11 @@ import numpy as np
 import json
 from pathlib import Path  
 from app.utils.tooltip_formatter import format_confidence_tooltip
+from app.services.lung_multimodel_service import run_all_stage2_models
 
 # ================= PATH SETUP =================
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-MODEL_PATH = BASE_DIR / "ml_models" / "ExtraTreesS2.pkl"
+MODEL_PATH = BASE_DIR / "ml_models" / "lung_models" / "stage2_copd_ml" / "GradientBoosting.pkl"
 FEATURE_PATH = BASE_DIR / "ml_models" / "stage2_features.json"
 
 # ================= LOAD MODEL =================
@@ -37,9 +38,13 @@ def predict_stage2(input_data: dict):
     for i in range(len(probabilities))
 }
 
+    # Run all trained models for confidence comparison
+    model_confidences = run_all_stage2_models(df)
+
     return {
         "gold_stage": int(prediction),
         "confidence": confidence,
         "probabilities": probability_breakdown,
-        "meets_threshold": confidence >= STAGE2_CONF_THRESHOLD
+        "meets_threshold": confidence >= STAGE2_CONF_THRESHOLD,
+        "model_confidences": model_confidences,
     }

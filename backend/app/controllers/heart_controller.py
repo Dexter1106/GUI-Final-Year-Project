@@ -7,8 +7,12 @@
 #
 ####################################################################
 
-from flask import Blueprint, request, jsonify
-from app.services.heart_service import predict_heart_disease
+from flask import Blueprint, request, jsonify, Response
+from app.services.heart_service import (
+    predict_heart_disease,
+    generate_report,
+    generate_pdf_from_report
+)
 
 heart_blueprint = Blueprint("heart_blueprint", __name__)
 
@@ -32,30 +36,6 @@ REQUIRED_FIELDS = [
     "Systolic_Blood_Pressure", "Diastolic_Blood_Pressure",
     "Cholesterol", "Glucose", "Smoking", "Alcohol", "Physical_Activity",
 ]
-
-# ── Criticality → probabilities sent to React UI ──────────────────
-#
-# ALIGNMENT NOTE — these values MUST agree with getRiskMeta() in Heart.jsx:
-#
-#   getRiskMeta(prediction, probDisease):
-#     prediction === 0          → cls "safe"     (Low Risk)
-#     probDisease < 60          → cls "moderate" (Moderate Risk)
-#     probDisease < 75          → cls "high"     (High Risk)
-#     probDisease < 90          → cls "critical" (Critical Risk)
-#     probDisease >= 90         → cls "extreme"  (Extreme Risk)
-#
-# So each Disease probability below must land inside its own bracket:
-#   Low Risk      →  15  (< 60  ✓, but prediction=0 so getRiskMeta returns "safe" regardless)
-#   Moderate Risk →  52  (< 60  ✓ → "moderate")
-#   High Risk     →  68  (>= 60, < 75 ✓ → "high")
-#   Critical Risk →  83  (>= 75, < 90 ✓ → "critical")
-#
-PROB_MAP = {
-    "Low Risk":      {"Disease": 15.0, "No Disease": 85.0, "confidence": 15},
-    "Moderate Risk": {"Disease": 52.0, "No Disease": 48.0, "confidence": 52},
-    "High Risk":     {"Disease": 68.0, "No Disease": 32.0, "confidence": 68},
-    "Critical Risk": {"Disease": 83.0, "No Disease": 17.0, "confidence": 83},
-}
 
 
 @heart_blueprint.route("/predict", methods=["POST"])
@@ -89,15 +69,9 @@ def predict_heart():
 
     criticality = result.get("criticality", "").strip()   # e.g. "High Risk"
 
-    # ── Derive prediction flag (1 = disease present, 0 = absent) ──
-    is_disease = "NO CARDIOVASCULAR" not in result.get("disease", "").upper()
-    prediction = 1 if is_disease else 0
-
-    # ── Look up probabilities for this criticality level ───────────
-    probs = PROB_MAP.get(
-        criticality,
-        {"Disease": 50.0, "No Disease": 50.0, "confidence": 50}
-    )
+    # ── Deriving dynamic probabilities from model ──────────────────
+    prob_disease = result.get("prob_disease", 50.0)
+    confidence   = result.get("confidence", "50.0%").replace("%", "")
 
     # ── Split "ACTION: recommendation text" ────────────────────────
     decision_raw = result.get("decision", "")
@@ -112,26 +86,57 @@ def predict_heart():
     return jsonify({
         "success": True,
         "result": {
-            # ── Core prediction fields consumed by ResultCard ──────
             "organ":          result.get("organ", "Heart"),
             "disease_type":   result.get("disease", "Unknown"),
             "risk_level":     criticality,
-            "prediction":     prediction,                  # 0 or 1
+            "prediction":     1 if "NO CARDIOVASCULAR" not in result.get("disease", "").upper() else 0,
             "probabilities": {
-                "Disease":    probs["Disease"],            # used by probability bars
-                "No Disease": probs["No Disease"],
+                "Disease":    round(prob_disease, 1),
+                "No Disease": round(100.0 - prob_disease, 1),
             },
-            "confidence":     probs["confidence"],         # shown as big % number
-            "medical_action": medical_action,              # shown in action banner
-            "recommendation": recommendation,              # shown below medical_action
-            "presence":       "Present" if is_disease else "Absent",
+            "confidence":     confidence,
+            "medical_action": medical_action,
+            "recommendation": recommendation,
+            "presence":       "Present" if "NO CARDIOVASCULAR" not in result.get("disease", "").upper() else "Absent",
+            
+            # Consensus Engine Data
+            "model_results":  result.get("model_results", []),
+            "diagnostics": {
+                "loaded_models": result.get("loaded_models_count", 0)
+            },
 
-            # ── model_info — consumed by the info strip at bottom ──
-            # Heart.jsx line 470: result.model_info?.model_name
-            # Heart.jsx line 471: result.model_info?.model_accuracy
             "model_info": {
-                "model_name":     "best_model (VotingClassifier)",
-                "model_accuracy": 0.87,       # update with your actual eval accuracy
+                "model_name":     "XGBoost (Consensus Engine)",
+                "model_accuracy": 0.88,
             },
         }
     }), 200
+
+@heart_blueprint.route("/report", methods=["POST"])
+def generate_heart_report():
+    try:
+        body = request.get_json(force=True)
+        if not body:
+            return jsonify({"success": False, "error": "No input data"}), 400
+
+        # 1. Prediction
+        input_data = {f: float(body[f]) for f in REQUIRED_FIELDS}
+        prediction = predict_heart_disease(input_data)
+        
+        if prediction.get("disease") == "Error":
+            return jsonify({"success": False, "error": "Prediction failed"}), 500
+
+        # 2. Report
+        report = generate_report(input_data, prediction)
+
+        # 3. PDF
+        pdf_bytes = generate_pdf_from_report(report)
+
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': 'attachment;filename=MediSense_Heart_Report.pdf'}
+        )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500

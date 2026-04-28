@@ -1,403 +1,443 @@
+////////////////////////////////////////////////////////////////////
+//// File Name : Liver.jsx
+//// Description : Liver disease prediction UI — Premium Medical Theme
+////               Matching Kidney/Lung aesthetics and functionality
+//// Updated     : Premium TooltipKit + Model Consensus Engine
+////////////////////////////////////////////////////////////////////
+
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Info } from "lucide-react";
+import { 
+  Activity, HeartPulse, Brain, Info, CheckCircle2, 
+  AlertTriangle, FileBarChart2, ChevronDown, ChevronUp, 
+  Trophy, Loader2, ChevronRight, Download, Eye, FileText, Wind, ShieldAlert
+} from "lucide-react";
 import axiosInstance from "../../api/axiosInstance";
+import Navbar from "../../components/Navbar";
 
 /* ─────────────────────────────────────────────
-   FEATURE PRIORITY MAP
-───────────────────────────────────────────── */
-const FEATURE_PRIORITY = {
-  age:              "low",
-  gender:           "low",
-  alb:              "medium",
-  alp:              "medium",
-  alt:              "high",
-  ast:              "high",
-  bil:              "high",
-  direct_bilirubin: "medium",
-  che:              "low",
-  chol:             "low",
-  crea:             "high",
-  ggt:              "medium",
-  prot:             "low",
-  inr:              "high",
-  sodium:           "medium",
-  ascites:          "low",
-  encephalopathy:   "low",
+   GLOBAL STYLES (Mint Medical Theme)
+ ───────────────────────────────────────────── */
+const GLOBAL_CSS = `
+  :root {
+    --lv-bg:        #f8fafc;
+    --lv-surface:   #ffffff;
+    --lv-accent:    #14b8a6; /* Teal */
+    --lv-primary:   #4f46e5; /* Indigo */
+    --lv-mint:      #10b981;
+    --lv-border:    #e2e8f0;
+    --lv-text:      #0f172a;
+    --lv-muted:     #64748b;
+  }
+
+  .lv-root {
+    background: var(--lv-bg);
+    min-height: 100vh;
+    padding-bottom: 80px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  .lv-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .lv-header-banner {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    padding: 40px 0;
+    margin-bottom: 40px;
+    color: white;
+    text-align: center;
+    border-bottom: 4px solid var(--lv-accent);
+  }
+
+  .lv-logo {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+  }
+  .lv-logo span { color: var(--lv-accent); }
+  .lv-tagline {
+    font-size: 0.75rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--lv-muted);
+    opacity: 0.8;
+  }
+
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+  
+  @media (max-width: 900px) { .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+`;
+
+/* ═══════════════════════════════════════════════════
+   FEATURE DATA & CONFIG
+ ═══════════════════════════════════════════════════ */
+const LEVEL_CFG = {
+  critical: {
+    strip: "bg-red-500",
+    dot: "bg-red-500",
+    label: "Critical",
+    tagBg: "bg-red-50 text-red-700 border-red-200",
+    headerBg: "bg-red-50/50 border-red-100",
+    headerTxt: "text-red-800",
+  },
+  key: {
+    strip: "bg-amber-500",
+    dot: "bg-amber-500",
+    label: "Key Factor",
+    tagBg: "bg-amber-50 text-amber-700 border-amber-200",
+    headerBg: "bg-amber-50/50 border-amber-100",
+    headerTxt: "text-amber-800",
+  },
+  supporting: {
+    strip: "bg-teal-500",
+    dot: "bg-teal-500",
+    label: "Supporting",
+    tagBg: "bg-teal-50 text-teal-700 border-teal-200",
+    headerBg: "bg-teal-50/50 border-teal-100",
+    headerTxt: "text-teal-800",
+  },
 };
 
-/* ─────────────────────────────────────────────
-   FEATURE TOOLTIP INFO
-───────────────────────────────────────────── */
-const FEATURE_INFO = {
-  age: {
-    label: "Age",
-    desc: "Patient age in years. Older patients have higher baseline risk for liver fibrosis and cirrhosis.",
-    range: "1–120 years",
-    normal: "Any",
-    medium: null,
-    critical: ">60 (elevated risk)",
-  },
-  gender: {
-    label: "Biological Sex",
-    desc: "Biological sex influences liver enzyme reference ranges and disease progression rates.",
-    range: "Male / Female",
-    normal: "N/A",
-    medium: null,
-    critical: null,
-  },
-  alb: {
-    label: "Albumin",
-    desc: "Protein synthesised by the liver — low levels reflect impaired synthetic function and chronic disease.",
-    range: "3.5–5.0 g/dL",
-    normal: "3.5–5.0",
-    medium: "2.8–3.4",
-    critical: "<2.8",
-  },
-  alp: {
-    label: "Alkaline Phosphatase (ALP)",
-    desc: "Enzyme elevated in cholestatic liver disease, biliary obstruction, and bone disease.",
-    range: "44–147 U/L",
-    normal: "44–147",
-    medium: "148–300",
-    critical: ">300",
-  },
+const FIELD_META = {
   alt: {
-    label: "Alanine Aminotransferase (ALT)",
-    desc: "Liver-specific enzyme — the primary marker of hepatocellular damage and inflammation.",
-    range: "7–56 U/L",
-    normal: "7–56",
-    medium: "57–200",
-    critical: ">200",
+    label: "ALT (SGPT)",
+    level: "critical",
+    type: "number",
+    min: 0, max: 1000, step: "any",
+    unit: "U/L",
+    tooltip: {
+      why: "Alanine Aminotransferase — primary marker of hepatocellular injury.",
+      normal: "7 – 56 U/L",
+      alert: "> 100 (Inflammation)",
+      ref: "Liver Panel"
+    }
   },
   ast: {
-    label: "Aspartate Aminotransferase (AST)",
-    desc: "Enzyme found in liver, heart, and muscle. Elevated in hepatitis, cirrhosis, and alcoholic liver disease.",
-    range: "10–40 U/L",
-    normal: "10–40",
-    medium: "41–120",
-    critical: ">120",
+    label: "AST (SGOT)",
+    level: "critical",
+    type: "number",
+    min: 0, max: 1000, step: "any",
+    unit: "U/L",
+    tooltip: {
+      why: "Aspartate Aminotransferase — elevated in cirrhosis and hepatitis.",
+      normal: "10 – 40 U/L",
+      alert: "> 80 (Hepatic stress)",
+      ref: "Liver Panel"
+    }
   },
   bil: {
     label: "Total Bilirubin",
-    desc: "Breakdown product of haemoglobin — elevated levels cause jaundice and signal impaired liver excretion.",
-    range: "0.2–1.2 mg/dL",
-    normal: "0.2–1.2",
-    medium: "1.3–3.0",
-    critical: ">3.0",
-  },
-  direct_bilirubin: {
-    label: "Direct Bilirubin",
-    desc: "Conjugated fraction — elevated values indicate hepatocellular dysfunction or biliary obstruction.",
-    range: "0–0.3 mg/dL",
-    normal: "0–0.3",
-    medium: "0.4–1.0",
-    critical: ">1.0",
-  },
-  che: {
-    label: "Cholinesterase",
-    desc: "Enzyme synthesised by the liver — reduced activity reflects decreased synthetic capacity.",
-    range: "5.3–12.9 kU/L",
-    normal: "5.3–12.9",
-    medium: "3.0–5.2",
-    critical: "<3.0",
-  },
-  chol: {
-    label: "Cholesterol",
-    desc: "Total cholesterol — low levels in liver disease reflect impaired lipid synthesis.",
-    range: "<200 mg/dL",
-    normal: "<200",
-    medium: "200–239",
-    critical: ">240 or <100",
+    level: "critical",
+    type: "number",
+    min: 0, max: 50, step: "any",
+    unit: "mg/dL",
+    tooltip: {
+      why: "Measures waste from RBC breakdown. High levels cause jaundice.",
+      normal: "0.2 – 1.2 mg/dL",
+      alert: "> 2.5 (Severe dysfunction)",
+      ref: "Biliary Health"
+    }
   },
   crea: {
     label: "Creatinine",
-    desc: "Kidney waste marker — elevated in hepatorenal syndrome, a serious complication of advanced liver disease.",
-    range: "0.6–1.2 mg/dL",
-    normal: "0.6–1.2",
-    medium: "1.3–2.0",
-    critical: ">2.0",
-  },
-  ggt: {
-    label: "Gamma-Glutamyl Transferase (GGT)",
-    desc: "Sensitive marker of hepatobiliary disease and alcohol-related liver damage.",
-    range: "9–48 U/L",
-    normal: "9–48",
-    medium: "49–150",
-    critical: ">150",
-  },
-  prot: {
-    label: "Total Protein",
-    desc: "Sum of albumin and globulins — reflects liver synthetic function and nutritional status.",
-    range: "6.0–8.3 g/dL",
-    normal: "6.0–8.3",
-    medium: "5.0–5.9",
-    critical: "<5.0",
+    level: "critical",
+    type: "number",
+    min: 0, max: 20, step: "any",
+    unit: "mg/dL",
+    tooltip: {
+      why: "Marker for hepatorenal syndrome — a complication of liver failure.",
+      normal: "0.6 – 1.2 mg/dL",
+      alert: "> 1.5 (Renal impact)",
+      ref: "HRS Monitoring"
+    }
   },
   inr: {
-    label: "INR (Coagulation)",
-    desc: "International Normalised Ratio — measures clotting ability. Elevated INR reflects severe synthetic dysfunction and is a MELD component.",
-    range: "0.8–1.1",
-    normal: "0.8–1.1",
-    medium: "1.2–1.5",
-    critical: ">1.5",
+    label: "INR",
+    level: "critical",
+    type: "number",
+    min: 0, max: 10, step: "any",
+    unit: "ratio",
+    tooltip: {
+      why: "Measures blood clotting time — vital for MELD/synthetic function.",
+      normal: "0.8 – 1.1",
+      alert: "> 1.5 (Clotting risk)",
+      ref: "Synthetic Capacity"
+    }
+  },
+  alb: {
+    label: "Albumin",
+    level: "key",
+    type: "number",
+    min: 0, max: 10, step: "any",
+    unit: "g/dL",
+    tooltip: {
+      why: "Protein made by liver — low levels indicate chronic liver failure.",
+      normal: "3.5 – 5.0 g/dL",
+      alert: "< 3.0 (Synthetic failure)",
+      ref: "Nutritional Status"
+    }
+  },
+  alp: {
+    label: "ALP",
+    level: "key",
+    type: "number",
+    min: 0, max: 2000, step: "any",
+    unit: "U/L",
+    tooltip: {
+      why: "Alkaline Phosphatase — elevated in biliary obstruction.",
+      normal: "44 – 147 U/L",
+      alert: "> 200 (Cholestasis)",
+      ref: "Biliary Tree"
+    }
+  },
+  direct_bilirubin: {
+    label: "Direct Bilirubin",
+    level: "key",
+    type: "number",
+    min: 0, max: 25, step: "any",
+    unit: "mg/dL",
+    tooltip: {
+      why: "Conjugated bilirubin — helps differentiate cause of jaundice.",
+      normal: "0 – 0.3 mg/dL",
+      alert: "> 0.5 (Obstruction)",
+      ref: "Liver Function"
+    }
+  },
+  ggt: {
+    label: "GGT",
+    level: "key",
+    type: "number",
+    min: 0, max: 2000, step: "any",
+    unit: "U/L",
+    tooltip: {
+      why: "Gamma-Glutamyl Transferase — sensitive marker of alcohol use.",
+      normal: "9 – 48 U/L",
+      alert: "> 60 (Toxic stress)",
+      ref: "Hepatic Health"
+    }
   },
   sodium: {
-    label: "Serum Sodium",
-    desc: "Hyponatraemia in liver disease signals portal hypertension and is a key MELD-Na component.",
-    range: "136–145 mEq/L",
-    normal: "136–145",
-    medium: "130–135",
-    critical: "<130",
+    label: "Sodium",
+    level: "key",
+    type: "number",
+    min: 100, max: 180, step: "any",
+    unit: "mEq/L",
+    tooltip: {
+      why: "Serum sodium level — critical for MELD-Na scoring in cirrhosis.",
+      normal: "136 – 145 mEq/L",
+      alert: "< 130 (High risk)",
+      ref: "Fluid Balance"
+    }
   },
+  age: {
+    label: "Age",
+    level: "supporting",
+    type: "number",
+    min: 1, max: 120, step: "1",
+    unit: "yrs",
+    tooltip: {
+      why: "Risk baseline increases with age due to fibrosis accumulation.",
+      normal: "Any",
+      alert: "> 65 (High baseline)",
+      ref: "Demographics"
+    }
+  },
+  gender: {
+    label: "Sex",
+    level: "supporting",
+    type: "select",
+    options: [{label: "Male", value: "1"}, {label: "Female", value: "0"}],
+    tooltip: {
+      why: "Biological sex impacts enzyme baseline and progression.",
+      normal: "N/A",
+      alert: "N/A",
+      ref: "Clinical Factors"
+    }
+  },
+  che: { label: "CHE", level: "supporting", type: "number", unit: "kU/L", tooltip: { why: "Cholinesterase — synthetic marker.", normal: "5.3 - 12.9", alert: "Low", ref: "SI Units" } },
+  chol: { label: "Cholesterol", level: "supporting", type: "number", unit: "mg/dL", tooltip: { why: "Total cholesterol level.", normal: "< 200", alert: "Low/High", ref: "Lipids" } },
+  prot: { label: "Total Protein", level: "supporting", type: "number", unit: "g/dL", tooltip: { why: "Sum of albumin & globulin.", normal: "6.0 - 8.3", alert: "< 6.0", ref: "Synthesis" } },
   ascites: {
     label: "Ascites",
-    desc: "Fluid accumulation in the peritoneal cavity — a major complication of cirrhosis used in Child-Pugh scoring.",
-    range: "None / Mild / Severe",
-    normal: "None (0)",
-    medium: "Mild (1)",
-    critical: "Severe (2)",
+    level: "supporting",
+    type: "select",
+    options: [{label: "None", value: "0"}, {label: "Mild", value: "1"}, {label: "Severe", value: "2"}],
+    tooltip: { why: "Fluid in abdomen.", normal: "None", alert: "Present", ref: "Child-Pugh" }
   },
   encephalopathy: {
-    label: "Encephalopathy",
-    desc: "Hepatic encephalopathy — neurological dysfunction caused by liver failure. Graded 0–2 for Child-Pugh scoring.",
-    range: "None / Grade 1–2 / Grade 3–4",
-    normal: "None (0)",
-    medium: "Grade 1–2 (1)",
-    critical: "Grade 3–4 (2)",
+    label: "Enceph.",
+    level: "supporting",
+    type: "select",
+    options: [{label: "None", value: "0"}, {label: "Grade 1-2", value: "1"}, {label: "Grade 3-4", value: "2"}],
+    tooltip: { why: "Brain dysfunction.", normal: "None", alert: "Present", ref: "Child-Pugh" }
   },
 };
 
-const BADGE_LABEL = { high: "Critical", medium: "Key", low: "Supporting" };
+const SECTIONS = [
+  { id: "core", label: "Core Hepatic Panel", step: "01", fields: ["alt", "ast", "bil", "crea", "inr"], icon: Activity, color: "text-red-500" },
+  { id: "biochemical", label: "Biochemical Markers", step: "02", fields: ["alb", "alp", "direct_bilirubin", "ggt", "sodium"], icon: Wind, color: "text-amber-500" },
+  { id: "patient", label: "Patient & Synthetic", step: "03", fields: ["age", "gender", "che", "chol", "prot", "ascites", "encephalopathy"], icon: Brain, color: "text-teal-500" },
+];
 
-/* ─────────────────────────────────────────────
-   DEFAULT VALUES — Supporting (low) fields with safe baselines
-   (same pattern as Kidney.jsx DEFAULT_VALUES)
-───────────────────────────────────────────── */
-const DEFAULT_VALUES = {
-  // LOW (Supporting) — healthy population baselines
-  che:              8.0,    // mid-range healthy cholinesterase (5.3–12.9 kU/L)
-  chol:             180,    // desirable cholesterol (<200 mg/dL)
-  prot:             7.0,    // mid-range healthy total protein (6.0–8.3 g/dL)
-  ascites:          0,      // no ascites (normal)
-  encephalopathy:   0,      // no encephalopathy (normal)
-};
+/* ═══════════════════════════════════════════════════
+   PREMIUM HELPERS & COMPONENTS
+ ═══════════════════════════════════════════════════ */
+const Card = ({ children, className = "", accentColor = "bg-teal-500" }) => (
+  <div className={`relative bg-white border border-slate-200 rounded-xl shadow-sm overflow-visible ${className}`}>
+    <div className={`absolute top-0 left-0 right-0 h-0.5 ${accentColor}`} />
+    <div className="pt-5 px-6 pb-6">{children}</div>
+  </div>
+);
 
-/* Fields that are required even though they are "low" priority */
-const REQUIRED_LOW = new Set(["age", "gender"]);
+const FieldInput = ({ name, value, onChange }) => {
+  const meta = FIELD_META[name];
+  const cfg  = LEVEL_CFG[meta.level];
+  const isRequired = meta.level !== "supporting" || name === "age" || name === "gender";
 
-/* ─────────────────────────────────────────────
-   TOOLTIP KIT COMPONENT
-───────────────────────────────────────────── */
-function TooltipKit({ name }) {
-  const [show, setShow] = useState(false);
-  const info = FEATURE_INFO[name];
-  if (!info) return null;
-  const p = FEATURE_PRIORITY[name] || "low";
-
-  const dotColor = { high: "#e05252", medium: "#f0b429", low: "#8BAFC8" }[p];
+  const inputCls = [
+    "w-full py-2 px-3 text-sm rounded-lg border border-slate-200",
+    "text-slate-800 placeholder-slate-400",
+    "focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all bg-white",
+    meta.level === "critical" ? "focus:ring-red-300" : meta.level === "key" ? "focus:ring-amber-300" : "focus:ring-teal-300",
+  ].join(" ");
 
   return (
-    <span style={{ position: "relative", display: "inline-flex", alignItems: "center", verticalAlign: "middle" }}>
-      <span
-        onMouseEnter={() => setShow(true)}
-        onMouseLeave={() => setShow(false)}
-        style={{
-          width: 15, height: 15,
-          borderRadius: "50%",
-          background: "#f0f4f8",
-          border: "1px solid #D8DDE6",
-          color: "#5A6A7A",
-          fontSize: "0.52rem",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "help",
-          marginLeft: 6,
-          flexShrink: 0,
-          transition: "background 0.15s, border-color 0.15s",
-        }}
-      >
-        <Info size={8} />
-      </span>
+    <div className="relative group">
+      <div className={`absolute left-0 top-0 bottom-0 w-0.5 rounded-l-lg ${cfg.strip}`} />
+      <div className={`pl-2.5 rounded-lg border ${meta.level === "critical" ? "border-red-100 bg-red-50/40" : meta.level === "key" ? "border-amber-100 bg-amber-50/40" : "border-teal-100 bg-teal-50/30"}`}>
+        <div className="flex items-center justify-between px-1 pt-1.5 pb-0.5">
+          <span className={`text-[0.6rem] font-bold uppercase tracking-tight ${cfg.headerTxt}`}>{meta.label}</span>
+          <span className={`text-[0.55rem] px-1.5 py-0.5 rounded border font-bold ${cfg.tagBg}`}>{cfg.label}</span>
+        </div>
+        {meta.type === "select" ? (
+          <select name={name} required={isRequired} onChange={onChange} value={value} className={`${inputCls} mb-1.5 border-0 bg-transparent focus:bg-white`}>
+            <option value="" disabled>Select…</option>
+            {meta.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        ) : (
+          <div className="relative mb-1.5">
+            <input type="number" name={name} placeholder={meta.unit || ""} step={meta.step || "any"} required={isRequired} onChange={onChange} value={value} className={`${inputCls} border-0 bg-transparent focus:bg-white ${meta.unit ? "pr-14" : ""}`} />
+            {meta.unit && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[0.6rem] text-slate-400 font-mono pointer-events-none select-none">{meta.unit}</span>}
+          </div>
+        )}
+      </div>
+      {/* Tooltip */}
+      <div className="absolute z-50 hidden group-hover:flex flex-col bg-white border border-slate-200 shadow-xl rounded-xl text-slate-700 p-4 top-full left-0 mt-1 w-72 pointer-events-none">
+        <div className="flex items-center justify-between mb-2">
+          <span className="font-bold text-slate-900 text-sm">{meta.label}</span>
+          <span className={`text-[0.6rem] px-1.5 py-0.5 rounded border font-bold ${cfg.tagBg}`}>{cfg.label}</span>
+        </div>
+        <div className={`absolute top-0 left-0 right-0 h-0.5 rounded-t-xl ${cfg.strip}`} />
+        <p className="text-slate-600 leading-relaxed mb-3 text-[0.7rem]">{meta.tooltip.why}</p>
+        <div className="space-y-1.5 pt-2 border-t border-slate-100">
+          <div className="flex gap-2 text-[0.65rem]"><span className="text-slate-400 w-14 flex-shrink-0">Normal</span><span className="text-emerald-600 font-semibold">{meta.tooltip.normal}</span></div>
+          <div className="flex gap-2 text-[0.65rem]"><span className="text-slate-400 w-14 flex-shrink-0">⚠ Alert</span><span className="text-red-600">{meta.tooltip.alert}</span></div>
+          <div className="flex gap-2 text-[0.65rem]"><span className="text-slate-400 w-14 flex-shrink-0">Ref</span><span className="text-indigo-600 italic">{meta.tooltip.ref}</span></div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
+const ModelConfidenceTable = ({ models, expanded, onToggle }) => {
+  if (!models) return null;
+  const agreementCount = models.filter(m => m.prediction === models[0].prediction).length;
+
+  return (
+    <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50">
+      <button onClick={onToggle} type="button" className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-100 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 bg-teal-100 rounded-lg text-teal-600"><FileText size={14} /></div>
+          <div className="text-left">
+            <p className="text-[0.7rem] font-bold text-slate-800 uppercase tracking-tight">Model Consensus Analysis</p>
+            <p className="text-[0.65rem] text-slate-500">{agreementCount} of {models.length} sub-models agree on diagnosis</p>
+          </div>
+        </div>
+        {expanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+      </button>
       <AnimatePresence>
-        {show && (
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.12 }}
-            style={{
-              position: "absolute",
-              bottom: "calc(100% + 8px)",
-              left: 0,
-              zIndex: 999,
-              background: "#0f172a",
-              border: "1px solid #1e2d45",
-              borderRadius: 9,
-              padding: "10px 13px",
-              minWidth: 230,
-              maxWidth: 290,
-              boxShadow: "0 8px 28px rgba(0,0,0,0.4)",
-              pointerEvents: "none",
-            }}
-          >
-            {/* Arrow */}
-            <div style={{
-              position: "absolute", top: "100%", left: 14,
-              width: 0, height: 0,
-              borderLeft: "5px solid transparent",
-              borderRight: "5px solid transparent",
-              borderTop: "5px solid #1e2d45",
-            }} />
-
-            <div style={{ fontFamily: "DM Sans, sans-serif", fontSize: "0.74rem", fontWeight: 700, color: "#e2e8f0", marginBottom: 5 }}>
-              {info.label}
-            </div>
-            <div style={{ fontSize: "0.62rem", color: "#94a3b8", lineHeight: 1.55, marginBottom: 6 }}>
-              {info.desc}
-            </div>
-            <hr style={{ border: "none", borderTop: "1px solid #1e2d45", margin: "6px 0" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 6, marginTop: 3 }}>
-              <span style={{ fontSize: "0.58rem", color: "#64748b" }}>Range</span>
-              <span style={{ fontSize: "0.58rem", color: "#cbd5e1", textAlign: "right" }}>{info.range}</span>
-            </div>
-            {info.normal && (
-              <div style={{ marginTop: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", flexShrink: 0 }} />
-                  <span style={{ fontSize: "0.58rem", color: "#94a3b8" }}>Normal: {info.normal}</span>
+        {expanded && (
+          <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden border-t border-slate-200 bg-white">
+            <div className="p-4 space-y-3">
+              {models.map(m => (
+                <div key={m.model_name} className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[0.7rem]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-700">{m.model_name}</span>
+                      {m.is_primary && <Trophy size={10} className="text-amber-500" />}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-1.5 py-0.5 rounded text-[0.6rem] font-bold ${m.prediction === models[0].prediction ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-50 text-slate-400 border border-slate-100"}`}>{m.prediction}</span>
+                      <span className="font-mono font-bold text-slate-600 w-10 text-right">{m.confidence}%</span>
+                    </div>
+                  </div>
+                  <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${m.confidence}%` }} className={`h-full rounded-full ${m.prediction === models[0].prediction ? "bg-teal-500" : "bg-slate-300"}`} />
+                  </div>
                 </div>
-                {info.medium && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0 }} />
-                    <span style={{ fontSize: "0.58rem", color: "#94a3b8" }}>Borderline: {info.medium}</span>
-                  </div>
-                )}
-                {info.critical && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", flexShrink: 0 }} />
-                    <span style={{ fontSize: "0.58rem", color: "#94a3b8" }}>Critical: {info.critical}</span>
-                  </div>
-                )}
-              </div>
-            )}
-            <hr style={{ border: "none", borderTop: "1px solid #1e2d45", margin: "6px 0" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
-              <span style={{ fontSize: "0.58rem", color: "#64748b" }}>Importance</span>
-              <span style={{ fontSize: "0.58rem", color: dotColor, fontWeight: 600 }}>
-                {BADGE_LABEL[p]}
-              </span>
+              ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </span>
+    </div>
   );
-}
+};
 
-/* ─────────────────────────────────────────────
-   FIELD LABEL WITH TOOLTIP
-───────────────────────────────────────────── */
-function FieldLabel({ name, text }) {
-  return (
-    <label style={{ display: "flex", alignItems: "center", fontSize: "0.75rem", fontWeight: 600, color: "var(--navy)", letterSpacing: "0.02em" }}>
-      {text}
-      <TooltipKit name={name} />
-    </label>
-  );
-}
-
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    MAIN LIVER COMPONENT
-───────────────────────────────────────────── */
-const Liver = () => {
-  const [values, setValues] = useState({
-    age: "", gender: "",
-    alb: "", alp: "", alt: "", ast: "", bil: "", direct_bilirubin: "",
-    che: "", chol: "", crea: "", ggt: "", prot: "",
-    inr: "", sodium: "", ascites: "", encephalopathy: "",
+ ═══════════════════════════════════════════════════ */
+const DEFAULT_VALUES = {
+  che: 8.0, chol: 180, prot: 7.0, ascites: 0, encephalopathy: 0,
+};
+
+function Liver() {
+  const [formData, setFormData] = useState({
+    age: "", gender: "", alb: "", alp: "", alt: "", ast: "", bil: "", direct_bilirubin: "",
+    che: "", chol: "", crea: "", ggt: "", prot: "", inr: "", sodium: "", ascites: "", encephalopathy: ""
   });
-  const [errors, setErrors] = useState({});
-  const [globalError, setGlobalError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showModels, setShowModels] = useState(false);
 
-  const set = (field) => (e) => {
-    setValues((v) => ({ ...v, [field]: e.target.value }));
-    setErrors((er) => ({ ...er, [field]: "" }));
-    setGlobalError("");
-  };
-
-  const validate = () => {
-    const errs = {};
-    // Only require HIGH + MEDIUM + age + gender (not low-priority defaultable fields)
-    const required = ["age", "gender", "alb", "alp", "alt", "ast", "bil",
-      "direct_bilirubin", "crea", "ggt"];
-
-    required.forEach((f) => {
-      if (values[f] === "") errs[f] = "Required.";
-    });
-
-    const ranges = {
-      age: [1, 120], alb: [0.9, 8], bil: [0.01, 80],
-      direct_bilirubin: [0, 25], che: [0, 20], chol: [40, 600],
-      crea: [0.01, 15], prot: [1, 12],
-    };
-    Object.entries(ranges).forEach(([f, [min, max]]) => {
-      const v = parseFloat(values[f]);
-      if (!isNaN(v) && (v < min || v > max))
-        errs[f] = `Must be ${min}–${max}.`;
-    });
-
-    if (values.inr !== "" && parseFloat(values.inr) < 0.01)
-      errs.inr = "Must be ≥ 0.01.";
-    if (values.sodium !== "") {
-      const s = parseFloat(values.sodium);
-      if (s < 100 || s > 180) errs.sodium = "Must be 100–180.";
-    }
-    return errs;
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) {
-      setErrors(errs);
-      setGlobalError("Please correct the highlighted fields before submitting.");
-      return;
-    }
     setLoading(true);
     setResult(null);
+
     try {
       const payload = {
-        age:              parseFloat(values.age),
-        gender:           parseInt(values.gender),
-        // HIGH fields (required)
-        alt:              parseFloat(values.alt),
-        ast:              parseFloat(values.ast),
-        bil:              parseFloat(values.bil),
-        crea:             parseFloat(values.crea),
-        inr:            values.inr            ? parseFloat(values.inr)            : null,
-        // MEDIUM fields (required)
-        alb:              parseFloat(values.alb),
-        alp:              parseFloat(values.alp),
-        direct_bilirubin: parseFloat(values.direct_bilirubin),
-        ggt:              parseFloat(values.ggt),
-        sodium:         values.sodium         ? parseFloat(values.sodium)         : null,
-        // LOW fields — use default if empty
-        che:              values.che  !== "" ? parseFloat(values.che)  : DEFAULT_VALUES.che,
-        chol:             values.chol !== "" ? parseFloat(values.chol) : DEFAULT_VALUES.chol,
-        prot:             values.prot !== "" ? parseFloat(values.prot) : DEFAULT_VALUES.prot,
-        ascites:          values.ascites        !== "" ? parseInt(values.ascites)          : DEFAULT_VALUES.ascites,
-        encephalopathy:   values.encephalopathy !== "" ? parseInt(values.encephalopathy)   : DEFAULT_VALUES.encephalopathy,
+        age: parseFloat(formData.age),
+        gender: parseInt(formData.gender),
+        alt: parseFloat(formData.alt),
+        ast: parseFloat(formData.ast),
+        bil: parseFloat(formData.bil),
+        crea: parseFloat(formData.crea),
+        alb: parseFloat(formData.alb),
+        alp: parseFloat(formData.alp),
+        direct_bilirubin: parseFloat(formData.direct_bilirubin),
+        ggt: parseFloat(formData.ggt),
+        inr: formData.inr ? parseFloat(formData.inr) : null,
+        sodium: formData.sodium ? parseFloat(formData.sodium) : null,
+        che: formData.che !== "" ? parseFloat(formData.che) : DEFAULT_VALUES.che,
+        chol: formData.chol !== "" ? parseFloat(formData.chol) : DEFAULT_VALUES.chol,
+        prot: formData.prot !== "" ? parseFloat(formData.prot) : DEFAULT_VALUES.prot,
+        ascites: formData.ascites !== "" ? parseInt(formData.ascites) : DEFAULT_VALUES.ascites,
+        encephalopathy: formData.encephalopathy !== "" ? parseInt(formData.encephalopathy) : DEFAULT_VALUES.encephalopathy,
       };
 
       const res = await axiosInstance.post("/liver/predict", payload);
       setResult(res.data);
     } catch (err) {
-      setGlobalError(err.response?.data?.message || "Submission failed.");
+      alert("Submission failed. Please check your data.");
     } finally {
       setLoading(false);
     }
@@ -406,426 +446,132 @@ const Liver = () => {
   const handleDownloadPDF = async () => {
     try {
       const payload = {
-        age:              parseFloat(values.age),
-        gender:           parseInt(values.gender),
-        alt:              parseFloat(values.alt),
-        ast:              parseFloat(values.ast),
-        bil:              parseFloat(values.bil),
-        crea:             parseFloat(values.crea),
-        alb:              parseFloat(values.alb),
-        alp:              parseFloat(values.alp),
-        direct_bilirubin: parseFloat(values.direct_bilirubin),
-        ggt:              parseFloat(values.ggt),
-        inr:            values.inr            ? parseFloat(values.inr)            : null,
-        sodium:         values.sodium         ? parseFloat(values.sodium)         : null,
-        che:              values.che  !== "" ? parseFloat(values.che)  : DEFAULT_VALUES.che,
-        chol:             values.chol !== "" ? parseFloat(values.chol) : DEFAULT_VALUES.chol,
-        prot:             values.prot !== "" ? parseFloat(values.prot) : DEFAULT_VALUES.prot,
-        ascites:          values.ascites        !== "" ? parseInt(values.ascites)   : DEFAULT_VALUES.ascites,
-        encephalopathy:   values.encephalopathy !== "" ? parseInt(values.encephalopathy) : DEFAULT_VALUES.encephalopathy,
+        age: parseFloat(formData.age),
+        gender: parseInt(formData.gender),
+        alt: parseFloat(formData.alt),
+        ast: parseFloat(formData.ast),
+        bil: parseFloat(formData.bil),
+        crea: parseFloat(formData.crea),
+        alb: parseFloat(formData.alb),
+        alp: parseFloat(formData.alp),
+        direct_bilirubin: parseFloat(formData.direct_bilirubin),
+        ggt: parseFloat(formData.ggt),
+        inr: formData.inr ? parseFloat(formData.inr) : null,
+        sodium: formData.sodium ? parseFloat(formData.sodium) : null,
+        che: formData.che !== "" ? parseFloat(formData.che) : DEFAULT_VALUES.che,
+        chol: formData.chol !== "" ? parseFloat(formData.chol) : DEFAULT_VALUES.chol,
+        prot: formData.prot !== "" ? parseFloat(formData.prot) : DEFAULT_VALUES.prot,
+        ascites: formData.ascites !== "" ? parseInt(formData.ascites) : DEFAULT_VALUES.ascites,
+        encephalopathy: formData.encephalopathy !== "" ? parseInt(formData.encephalopathy) : DEFAULT_VALUES.encephalopathy,
       };
 
-      const response = await axiosInstance.post("/liver/report", payload, {
-        responseType: 'blob'
-      });
-
+      const response = await axiosInstance.post("/liver/report", payload, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Liver_Report_${Date.now()}.pdf`);
+      link.setAttribute('download', `MediSense_Liver_Report_${Date.now()}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (err) {
-      console.error("PDF Error:", err);
-      alert("Failed to download PDF. Check your backend console for data type errors.");
+      alert("Failed to download PDF.");
     }
   };
 
-  const inp = (field, placeholder, step = "0.01") => (
-    <input
-      type="number"
-      name={field}
-      value={values[field]}
-      onChange={set(field)}
-      placeholder={placeholder}
-      step={step}
-      style={errors[field] ? { borderColor: "#C0392B", boxShadow: "0 0 0 3px rgba(192,57,43,0.10)" } : {}}
-    />
-  );
-
-  // Result data helpers
-  const getDiagnosis    = (r) => r?.disease || r?.primary_diagnosis || "Unknown";
-  const getDecision     = (r) => r?.decision || r?.recommendation || "—";
-  const getCriticality  = (r) => {
-    if (r?.criticality) return r.criticality;
-    const d = getDiagnosis(r);
-    if (d === "Healthy") return "NONE";
-    if (d === "Early Liver Disease") return "LOW";
-    if (["Hepatitis", "Fibrosis", "Cirrhosis"].includes(d)) return "HIGH";
-    return "UNKNOWN";
-  };
-  const getModel1Conf   = (r) => r?.model1_confidence || r?.model1_probabilities || null;
-  const getModel2Conf   = (r) => r?.model2_confidence || r?.model2_probabilities || null;
-  const isSecondaryUsed = (r) => r?.secondary_model_used ?? (r?.model2_confidence != null);
-  const getSeverity     = (r) => r?.severity_assessment || null;
-
-  const criticalityColor = { NONE: "#27ae60", LOW: "#2ecc71", MEDIUM: "#f39c12", HIGH: "#e74c3c", UNKNOWN: "#95a5a6" };
-  const severityColor    = { "Low": "#27ae60", "Moderate": "#f39c12", "High": "#e67e22", "Very High": "#e74c3c", "Critical": "#8e1a1a" };
-
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-        :root {
-          --navy: #1B3A5C; --teal: #1A7A8A; --teal-light: #E8F4F6;
-          --teal-mid: #A8D4DA; --red: #C0392B; --grey-50: #F7F9FB;
-          --grey-100: #EEF1F5; --grey-200: #D8DDE6; --text: #1E2A38;
-          --text-muted: #5A6A7A; --white: #FFFFFF; --radius: 10px;
-          --shadow-md: 0 4px 16px rgba(27,58,92,0.10);
-          --font-serif: 'Source Serif 4', Georgia, serif;
-          --font-sans: 'DM Sans', system-ui, sans-serif;
-        }
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: var(--font-sans); background: var(--grey-50); color: var(--text); }
-
-        .page-header { background: var(--navy); padding: 28px 40px 24px; border-bottom: 3px solid var(--teal); }
-        .page-header__logo { font-family: var(--font-serif); font-size: 1.75rem; font-weight: 700; color: var(--white); }
-        .page-header__logo span { color: var(--teal-mid); }
-        .page-header__sub { font-size: 0.8rem; color: #8BAFC8; margin-top: 2px; font-weight: 300; letter-spacing: 0.04em; text-transform: uppercase; }
-
-        .page-content { max-width: 900px; margin: 0 auto; padding: 36px 24px 60px; }
-        .form-intro { margin-bottom: 28px; }
-        .form-intro h1 { font-family: var(--font-serif); font-size: 1.55rem; font-weight: 600; color: var(--navy); }
-        .units-note { background: #e6f9f4; border-left: 4px solid #00d4aa; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; margin-top: 12px; color: #065f46; }
-
-        .card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-md); margin-bottom: 24px; overflow: visible; }
-        .card__header { background: var(--navy); padding: 14px 22px; display: flex; align-items: center; gap: 10px; border-radius: var(--radius) var(--radius) 0 0; }
-        .card__header h2 { font-size: 0.8rem; font-weight: 600; color: var(--white); letter-spacing: 0.08em; text-transform: uppercase; }
-        .card__icon { width: 20px; height: 20px; background: var(--teal); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--white); flex-shrink: 0; }
-        .card__body { padding: 22px 22px 20px; }
-
-        .field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
-        .field { display: flex; flex-direction: column; gap: 5px; border-radius: 6px; position: relative; }
-        .field--high   { background: #fff0f0; border-left: 3px solid #e05252; padding-left: 8px; }
-        .field--medium { background: #fffbea; border-left: 3px solid #f0b429; padding-left: 8px; }
-        .field--low    { background: var(--white); border-left: 3px solid var(--grey-200); padding-left: 8px; }
-        .field input, .field select { height: 40px; padding: 0 12px; border: 1.5px solid var(--grey-200); border-radius: 7px; font-size: 0.88rem; outline: none; width: 100%; transition: border-color 0.15s; }
-        .field input:focus, .field select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(26,122,138,0.12); }
-        .field-error { font-size: 0.7rem; color: var(--red); }
-
-        .importance-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; padding: 10px 14px; background: var(--grey-50); border-radius: 6px; border: 1px solid var(--grey-100); }
-        .importance-legend span { font-size: 0.72rem; font-weight: 600; padding: 3px 10px; border-radius: 4px; color: var(--text-muted); }
-        .leg--high   { background: #fff0f0; border-left: 3px solid #e05252; }
-        .leg--medium { background: #fffbea; border-left: 3px solid #f0b429; }
-        .leg--low    { background: var(--white); border: 1px solid var(--grey-200); }
-
-        .btn-submit { width: 100%; height: 50px; background: var(--navy); color: var(--white); border: none; border-radius: var(--radius); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.18s; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-submit:hover { background: var(--teal); }
-        .btn-submit:disabled { opacity: 0.75; pointer-events: none; }
-        .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: var(--white); border-radius: 50%; animation: spin 0.7s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .btn-download { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; }
-        .btn-download:hover { background: rgba(255,255,255,0.25); border-color: white; }
-
-        .result-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-md); margin-top: 28px; overflow: hidden; }
-        .result-card__header { background: var(--navy); padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; }
-        .result-card__title { font-family: var(--font-serif); font-size: 1.1rem; color: var(--white); }
-        .result-badge { padding: 5px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; color: var(--white); }
-        .result-card__body { padding: 24px; }
-        .result-disease { font-family: var(--font-serif); font-size: 1.6rem; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
-        .result-decision { background: var(--teal-light); border-left: 4px solid var(--teal); padding: 12px 16px; border-radius: 6px; font-size: 0.9rem; color: var(--navy); margin: 16px 0; }
-        .result-decision strong { display: block; margin-bottom: 4px; font-size: 0.75rem; text-transform: uppercase; color: var(--teal); }
-
-        .pipeline-pill { display: inline-block; font-size: 0.73rem; color: var(--text-muted); background: var(--grey-100); border-radius: 4px; padding: 3px 10px; margin-bottom: 16px; }
-
-        .confidence-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 16px 0 8px; }
-        .confidence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
-        .confidence-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--grey-50); border-radius: 6px; font-size: 0.82rem; }
-        .confidence-item span:last-child { font-weight: 600; color: var(--navy); }
-
-        .severity-section { margin-top: 20px; border-top: 1px solid var(--grey-100); padding-top: 16px; }
-        .severity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .severity-box { background: var(--grey-50); border-radius: 8px; padding: 14px 16px; border: 1px solid var(--grey-100); }
-        .severity-score { font-family: var(--font-serif); font-size: 2rem; font-weight: 700; color: var(--navy); }
-        .transplant-banner { background: #fdf0ee; border: 1.5px solid #e8a09a; border-radius: 8px; padding: 10px 16px; color: var(--red); font-size: 0.88rem; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-        .transplant-banner--safe { background: #eaf7ef; border-color: #a8ddb8; color: #1a7a3a; }
-
-        /* Tooltip legend row */
-        .tooltip-legend { display: flex; align-items: center; gap: 16px; margin-top: 6px; flex-wrap: wrap; }
-        .tooltip-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.67rem; color: var(--text-muted); }
-        .tooltip-legend-dot { width: 7px; height: 7px; border-radius: 50%; }
-
-        .error-banner { background: #fdf0ee; border: 1.5px solid #e8a09a; border-radius: 8px; padding: 10px 16px; color: var(--red); font-size: 0.88rem; margin-bottom: 18px; }
-      `}</style>
-
-      <header className="page-header">
-        <div className="page-header__logo">Medi<span>Sense</span> Liver</div>
-        <div className="page-header__sub">Liver Disease Decision Support System · MediSense</div>
-      </header>
-
-      <main className="page-content">
-        <div className="form-intro">
-          <h1>Patient Evaluation Form</h1>
-          <p className="units-note">✅ <strong>Standard Units:</strong> Enter values in conventional clinical units (g/dL, mg/dL).</p>
-          {/* Tooltip legend */}
-          <div className="tooltip-legend" style={{ marginTop: 14 }}>
-            <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--text-muted)" }}>ⓘ Hover the info icon next to any label for clinical details</span>
-            <span className="tooltip-legend-item"><div className="tooltip-legend-dot" style={{ background: "#e05252" }} />Critical field</span>
-            <span className="tooltip-legend-item"><div className="tooltip-legend-dot" style={{ background: "#f0b429" }} />Key field</span>
-            <span className="tooltip-legend-item"><div className="tooltip-legend-dot" style={{ background: "#8BAFC8" }} />Supporting field</span>
+      <style>{GLOBAL_CSS}</style>
+      <Navbar />
+      <div className="lv-root">
+        <header className="lv-header-banner">
+          <div className="lv-container">
+            <motion.h1 initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} className="lv-logo">MEDISENSE <span>LIVER</span></motion.h1>
+            <p className="lv-tagline">Predict &gt; Prevent &gt; Cure</p>
           </div>
+        </header>
+
+        <div className="lv-container">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {SECTIONS.map((sec, idx) => (
+              <motion.div key={sec.id} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay: idx * 0.1 }} className="flex gap-0">
+                <div className="hidden md:flex flex-col items-center mr-6">
+                  <div className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center font-mono font-bold text-xs text-slate-400">{sec.step}</div>
+                  <div className="flex-1 w-0.5 bg-slate-100 my-2" />
+                </div>
+                <div className="flex-1">
+                  <Card accentColor={sec.color.replace("text-", "bg-")}>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className={`p-2 rounded-lg bg-white shadow-sm border border-slate-100 ${sec.color}`}><sec.icon size={20} /></div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-tight">{sec.label}</h3>
+                        <p className="text-[0.65rem] text-slate-400">Section {sec.step} · Patient Evaluation</p>
+                      </div>
+                    </div>
+                    <div className="grid-4">
+                      {sec.fields.map(f => <FieldInput key={f} name={f} value={formData[f]} onChange={handleChange} />)}
+                    </div>
+                  </Card>
+                </div>
+              </motion.div>
+            ))}
+
+            <div className="flex justify-center pt-4">
+              <motion.button type="submit" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full max-w-md py-4 rounded-xl bg-teal-600 text-white font-bold shadow-lg shadow-teal-200 flex items-center justify-center gap-2 disabled:opacity-50 transition-all">
+                {loading ? <Loader2 className="animate-spin" /> : <ChevronRight size={18} />}
+                {loading ? "Calculating Hepatic Risk..." : "Generate Liver Diagnostic Result"}
+              </motion.button>
+            </div>
+          </form>
+
+          <AnimatePresence>
+            {result && (
+              <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="mt-12">
+                <Card className="md:p-4" accentColor={result.primary_diagnosis === "Healthy" ? "bg-emerald-500" : "bg-red-500"}>
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-2">
+                      <FileBarChart2 size={20} className="text-slate-400" />
+                      <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Diagnostic Report</span>
+                    </div>
+                    <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-bold transition-colors">
+                      <Download size={14} /> Download PDF
+                    </button>
+                  </div>
+
+                  <div className="grid-3 mb-12">
+                    <div>
+                      <p className="text-[0.7rem] text-slate-400 uppercase font-bold tracking-wider mb-2">Status</p>
+                      <p className="text-3xl font-bold text-slate-800 tracking-tight">{result.primary_diagnosis}</p>
+                    </div>
+                    <div>
+                      <p className="text-[0.7rem] text-slate-400 uppercase font-bold tracking-wider mb-2">Confidence</p>
+                      <p className="text-3xl font-bold text-slate-800 tracking-tight">{result.confidence}</p>
+                    </div>
+                    <div>
+                      <p className="text-[0.7rem] text-slate-400 uppercase font-bold tracking-wider mb-2">Decision</p>
+                      <p className="text-lg font-bold text-teal-600">{result.recommendation}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 mb-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <ShieldAlert size={16} className="text-teal-600" />
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Clinical Insight</h4>
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed italic">
+                      "The diagnostic pipeline suggests {result.primary_diagnosis}. 
+                      {result.secondary_model_used ? " The analysis required a secondary evaluation stage for increased precision." : " The diagnosis was confirmed through high-consensus primary modeling."}"
+                    </p>
+                  </div>
+
+                  <ModelConfidenceTable models={result.model_results} expanded={showModels} onToggle={() => setShowModels(!showModels)} />
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-
-        {globalError && <div className="error-banner">{globalError}</div>}
-
-        <form onSubmit={handleSubmit} noValidate>
-
-          {/* ── Card 1: Patient Information ── */}
-          <div className="card">
-            <div className="card__header">
-              <div className="card__icon">①</div>
-              <h2>Patient Information</h2>
-            </div>
-            <div className="card__body">
-              <div className="field-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                <div className={`field field--${FEATURE_PRIORITY.age}`}>
-                  <FieldLabel name="age" text="Age (years)" />
-                  <input type="number" value={values.age} onChange={set("age")} style={errors.age ? { borderColor: "#C0392B" } : {}} />
-                  {errors.age && <span className="field-error">{errors.age}</span>}
-                </div>
-                <div className={`field field--${FEATURE_PRIORITY.gender}`}>
-                  <FieldLabel name="gender" text="Biological Sex" />
-                  <select value={values.gender} onChange={set("gender")} style={errors.gender ? { borderColor: "#C0392B" } : {}}>
-                    <option value="" disabled>Select…</option>
-                    <option value="1">Male</option>
-                    <option value="0">Female</option>
-                  </select>
-                  {errors.gender && <span className="field-error">{errors.gender}</span>}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Card 2: Core Liver Panel ── */}
-          <div className="card">
-            <div className="card__header">
-              <div className="card__icon">②</div>
-              <h2>Core Liver Panel</h2>
-            </div>
-            <div className="card__body">
-              <div className="importance-legend">
-                <span className="leg--high">🔴 Critical</span>
-                <span className="leg--medium">🟡 Key</span>
-                <span className="leg--low">⚪ Supporting</span>
-              </div>
-              <div className="field-grid">
-
-                <div className={`field field--${FEATURE_PRIORITY.alb}`}>
-                  <FieldLabel name="alb" text="Albumin (g/dL)" />
-                  {inp("alb")}
-                  {errors.alb && <span className="field-error">{errors.alb}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.alp}`}>
-                  <FieldLabel name="alp" text="ALP (U/L)" />
-                  {inp("alp")}
-                  {errors.alp && <span className="field-error">{errors.alp}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.alt}`}>
-                  <FieldLabel name="alt" text="ALT (U/L)" />
-                  {inp("alt")}
-                  {errors.alt && <span className="field-error">{errors.alt}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.ast}`}>
-                  <FieldLabel name="ast" text="AST (U/L)" />
-                  {inp("ast")}
-                  {errors.ast && <span className="field-error">{errors.ast}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.bil}`}>
-                  <FieldLabel name="bil" text="Total Bilirubin (mg/dL)" />
-                  {inp("bil")}
-                  {errors.bil && <span className="field-error">{errors.bil}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.direct_bilirubin}`}>
-                  <FieldLabel name="direct_bilirubin" text="Direct Bilirubin (mg/dL)" />
-                  {inp("direct_bilirubin")}
-                  {errors.direct_bilirubin && <span className="field-error">{errors.direct_bilirubin}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.che}`}>
-                  <FieldLabel name="che" text="Cholinesterase (kU/L)" />
-                  <div style={{ position: "relative" }}>
-                    {inp("che")}
-                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.65rem", color: "#059669", fontWeight: 600, pointerEvents: "none" }}>Optional</span>
-                  </div>
-                  {errors.che && <span className="field-error">{errors.che}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.chol}`}>
-                  <FieldLabel name="chol" text="Cholesterol (mg/dL)" />
-                  <div style={{ position: "relative" }}>
-                    {inp("chol")}
-                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.65rem", color: "#059669", fontWeight: 600, pointerEvents: "none" }}>Optional</span>
-                  </div>
-                  {errors.chol && <span className="field-error">{errors.chol}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.crea}`}>
-                  <FieldLabel name="crea" text="Creatinine (mg/dL)" />
-                  {inp("crea")}
-                  {errors.crea && <span className="field-error">{errors.crea}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.ggt}`}>
-                  <FieldLabel name="ggt" text="GGT (U/L)" />
-                  {inp("ggt")}
-                  {errors.ggt && <span className="field-error">{errors.ggt}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.prot}`}>
-                  <FieldLabel name="prot" text="Total Protein (g/dL)" />
-                  <div style={{ position: "relative" }}>
-                    {inp("prot")}
-                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.65rem", color: "#059669", fontWeight: 600, pointerEvents: "none" }}>Optional</span>
-                  </div>
-                  {errors.prot && <span className="field-error">{errors.prot}</span>}
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          {/* ── Card 3: Severity Scoring ── */}
-          <div className="card">
-            <div className="card__header">
-              <div className="card__icon">③</div>
-              <h2>Severity Scoring (Optional — defaults applied if empty)</h2>
-            </div>
-            <div className="card__body">
-              <div className="field-grid">
-
-                <div className={`field field--${FEATURE_PRIORITY.inr}`}>
-                  <FieldLabel name="inr" text="INR" />
-                  {inp("inr")}
-                  {errors.inr && <span className="field-error">{errors.inr}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.sodium}`}>
-                  <FieldLabel name="sodium" text="Sodium (mEq/L)" />
-                  {inp("sodium")}
-                  {errors.sodium && <span className="field-error">{errors.sodium}</span>}
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.ascites}`}>
-                  <FieldLabel name="ascites" text="Ascites" />
-                  <select value={values.ascites} onChange={set("ascites")}>
-                    <option value="">Not provided</option>
-                    <option value="0">0 — None</option>
-                    <option value="1">1 — Mild</option>
-                    <option value="2">2 — Severe</option>
-                  </select>
-                </div>
-
-                <div className={`field field--${FEATURE_PRIORITY.encephalopathy}`}>
-                  <FieldLabel name="encephalopathy" text="Encephalopathy" />
-                  <select value={values.encephalopathy} onChange={set("encephalopathy")}>
-                    <option value="">Not provided</option>
-                    <option value="0">0 — None</option>
-                    <option value="1">1 — Grade 1–2</option>
-                    <option value="2">2 — Grade 3–4</option>
-                  </select>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          <button type="submit" className="btn-submit" disabled={loading}>
-            {loading ? <><span className="spinner" /> Running…</> : "Run Evaluation →"}
-          </button>
-        </form>
-
-        {/* ── Result ── */}
-        {result && (() => {
-          const diagnosis   = getDiagnosis(result);
-          const decision    = getDecision(result);
-          const criticality = getCriticality(result);
-          const model1Conf  = getModel1Conf(result);
-          const model2Conf  = getModel2Conf(result);
-          const secondary   = isSecondaryUsed(result);
-          const severity    = getSeverity(result);
-
-          return (
-            <div className="result-card">
-              <div className="result-card__header">
-                <span className="result-card__title">Evaluation Result</span>
-                <button onClick={handleDownloadPDF} className="btn-download">⬇ Download PDF</button>
-                <span className="result-badge" style={{ backgroundColor: criticalityColor[criticality] || "#95a5a6" }}>{criticality}</span>
-              </div>
-
-              <div className="result-card__body">
-                <div className="result-disease">{diagnosis}</div>
-                <div className="pipeline-pill">{secondary ? "Stage 1 → Stage 2 (Early assessment)" : "Stage 1 (Cirrhosis model)"}</div>
-                <div className="result-decision"><strong>Recommended Action</strong>{decision}</div>
-
-                {model1Conf && (
-                  <>
-                    <div className="confidence-title">Model Confidence Scores</div>
-                    <div className="confidence-grid">
-                      {Object.entries(model1Conf).map(([key, val]) => (
-                        <div key={key} className="confidence-item"><span>{key}</span><span>{val !== null ? `${val}%` : "N/A"}</span></div>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {secondary && model2Conf && (
-                  <>
-                    <div className="confidence-title">Stage 2 Submodel Confidence</div>
-                    <div className="confidence-grid">
-                      {Object.entries(model2Conf).map(([key, val]) => (
-                        <div key={key} className="confidence-item"><span>{key}</span><span>{val !== null ? `${val}%` : "N/A"}</span></div>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {severity && (
-                  <div className="severity-section">
-                    <h3>Severity Assessment</h3>
-                    {severity.transplant_required
-                      ? <div className="transplant-banner">⚠ Transplant evaluation recommended</div>
-                      : <div className="transplant-banner transplant-banner--safe">✓ Medical management appropriate</div>
-                    }
-                    <div className="severity-grid">
-                      <div className="severity-box">
-                        <h4>MELD Score</h4>
-                        <div className="severity-score">{severity.meld_score}</div>
-                        <div style={{ color: severityColor[severity.meld?.risk_level] || "inherit" }}>{severity.meld?.risk_level} Risk</div>
-                        <div className="severity-desc">{severity.meld?.description}</div>
-                      </div>
-                      <div className="severity-box">
-                        <h4>Child-Pugh</h4>
-                        <div className="severity-score">{severity.child_pugh?.score}</div>
-                        <div>{severity.child_pugh?.classification}</div>
-                        <div className="severity-desc">{severity.child_pugh?.description}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-      </main>
+      </div>
     </>
   );
-};
+}
 
 export default Liver;

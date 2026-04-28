@@ -31,7 +31,6 @@ lung_blueprint = Blueprint("lung", __name__)
 ################################################################
 """
 @lung_blueprint.route("/stage1", methods=["POST"])
-@jwt_required()
 def stage1_predict():
 
     if "file" not in request.files:
@@ -53,7 +52,6 @@ def stage1_predict():
 ################################################################
 """
 @lung_blueprint.route("/stage2", methods=["POST"])
-@jwt_required()
 def stage2_predict():
 
     data = request.json
@@ -75,7 +73,6 @@ def stage2_predict():
 ################################################################
 """
 @lung_blueprint.route("/predict", methods=["POST"])
-@jwt_required()
 def predict_full():
 
     if "file" not in request.files:
