@@ -318,11 +318,11 @@ def generate_pdf_from_report(report: dict) -> bytes:
 
     styles = {
         "title": ParagraphStyle(
-            name="title", fontSize=18, textColor=_WHITE, alignment=TA_LEFT,
+            name="title", fontSize=18, textColor=_WHITE, alignment=TA_CENTER,
             spaceAfter=2, fontName="Helvetica-Bold"
         ),
         "subtitle": ParagraphStyle(
-            name="subtitle", fontSize=9, textColor=_WHITE, alignment=TA_LEFT,
+            name="subtitle", fontSize=9, textColor=_WHITE, alignment=TA_CENTER,
             spaceAfter=0, fontName="Helvetica"
         ),
         "section_heading": ParagraphStyle(
@@ -356,7 +356,6 @@ def generate_pdf_from_report(report: dict) -> bytes:
         ("BACKGROUND", (0, 0), (-1, -1), _NAVY),
         ("TOPPADDING", (0, 0), (-1, -1), 10),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("LEFTPADDING", (0, 0), (-1, -1), 12),
     ]))
     story.append(t)
     story.append(Spacer(1, 6*mm))

@@ -43,7 +43,7 @@ _STATUS_COLORS = {
 
 # ── Lab reference ranges ─────────────────────────────────────────────
 LAB_META = {
-    "gfr":              {"name": "GFR",                "unit": "mL/min", "low": 90,  "high": 200},
+    "gfr":              {"name": "GFR",                "unit": "mL/min", "low": 90,  "high": 120},
     "serum_creatinine": {"name": "Serum Creatinine",   "unit": "mg/dL",  "low": 0.6, "high": 1.2},
     "bun":              {"name": "BUN",                "unit": "mg/dL",  "low": 7,   "high": 20},
     "blood_pressure":   {"name": "Systolic BP",        "unit": "mmHg",   "low": 90,  "high": 120},
@@ -59,9 +59,13 @@ CLINICAL_NOTES = {
         "No immediate renal indicators detected. GFR and metabolic markers appear stable. "
         "Maintain adequate hydration and regular annual screenings."
     ),
-    "CKD Stage 1–2": (
-        "Early signs of kidney damage with normal or near-normal GFR. "
-        "Focus on blood pressure control and lifestyle modifications to prevent progression."
+    "CKD Stage 1": (
+        "Early signs of kidney damage with normal or near-normal GFR (≥ 90 mL/min). "
+        "Focus on blood pressure control, lifestyle modifications, and monitoring to prevent progression."
+    ),
+    "CKD Stage 2": (
+        "Mild reduction in GFR (60–89 mL/min) with evidence of kidney damage. "
+        "Dietary adjustments, regular monitoring, and risk-factor management are recommended."
     ),
     "CKD Stage 3": (
         "Moderate reduction in GFR. Indicates significant loss of kidney function. "
@@ -138,11 +142,11 @@ def generate_pdf_from_report(report: dict) -> bytes:
 
     styles = {
         "title": ParagraphStyle(
-            name="title", fontSize=18, textColor=_WHITE, alignment=TA_LEFT,
+            name="title", fontSize=18, textColor=_WHITE, alignment=TA_CENTER,
             spaceAfter=2, fontName="Helvetica-Bold"
         ),
         "subtitle": ParagraphStyle(
-            name="subtitle", fontSize=9, textColor=colors.HexColor("#D1C4E9"), alignment=TA_LEFT,
+            name="subtitle", fontSize=9, textColor=colors.HexColor("#D1C4E9"), alignment=TA_CENTER,
             spaceAfter=0, fontName="Helvetica"
         ),
         "section_heading": ParagraphStyle(
@@ -176,7 +180,6 @@ def generate_pdf_from_report(report: dict) -> bytes:
         ("BACKGROUND", (0, 0), (-1, -1), _DEEP_PURPLE),
         ("TOPPADDING", (0, 0), (-1, -1), 10),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("LEFTPADDING", (0, 0), (-1, -1), 12),
     ]))
     story.append(t)
     story.append(Spacer(1, 6*mm))
@@ -244,9 +247,15 @@ def generate_pdf_from_report(report: dict) -> bytes:
                    Paragraph("<b>Prediction</b>", styles["body_bold_white"]), 
                    Paragraph("<b>Certainty</b>", styles["body_bold_white"])]]
         
-        # models is a dict {name: {stage: X, confidence: Y}}
+        # models is a dict {name: {stage: X, confidence: Y, error?: str}}
         for name, val in models.items():
-            stage_label = f"Stage {val['stage']}" if val['stage'] != 1 else "No CKD"
+            stage = val.get('stage')
+            if stage is None:
+                stage_label = "Error"
+            elif stage == 0:
+                stage_label = "No CKD"
+            else:
+                stage_label = f"CKD Stage {stage}"
             c_rows.append([Paragraph(name, styles["body"]), stage_label, f"{val['confidence']}%"])
         
         t = Table(c_rows, colWidths=[80*mm, 60*mm, 40*mm])

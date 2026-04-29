@@ -116,7 +116,7 @@ const FIELD_META = {
     unit: "mL/min",
     tooltip: {
       why: "Glomerular Filtration Rate — primary measure of kidney health.",
-      normal: "> 90 mL/min",
+      normal: "91 – 120 mL/min",
       alert: "< 60 (Kidney Disease)",
       ref: "CKD Staging Guide"
     }
@@ -451,12 +451,20 @@ const FieldInput = ({ name, value, onChange }) => {
 
 const ModelConfidenceTable = ({ models, expanded, onToggle }) => {
   if (!models) return null;
-  const modelArray = Object.entries(models).map(([name, val]) => ({
-    model_name: name,
-    prediction: `Stage ${val.stage}`,
-    confidence: val.confidence / 100,
-    is_primary: name === "ExtraTrees"
-  })).sort((a, b) => b.confidence - a.confidence);
+  const stageLabel = (stage) => {
+    if (stage === null || stage === undefined) return "Error";
+    if (stage === 0) return "No CKD";
+    return `CKD Stage ${stage}`;
+  };
+  const modelArray = Object.entries(models)
+    .filter(([, val]) => val.stage !== null && val.stage !== undefined)
+    .map(([name, val]) => ({
+      model_name: name,
+      prediction: stageLabel(val.stage),
+      confidence: val.confidence / 100,
+      is_primary: false,
+    })).sort((a, b) => b.confidence - a.confidence);
+  if (modelArray.length > 0) modelArray[0].is_primary = true;
 
   const primaryModel = modelArray[0];
   const primaryPred = primaryModel?.prediction;

@@ -1,14 +1,14 @@
 ////////////////////////////////////////////////////////////////////
 //
 // File Name : Lung.jsx
-// Description : COPD Two-Stage AI — Medical Dashboard (Light Theme)
-//               + Inline jsPDF Report Generation (mirrors Kidney.jsx)
+// Description : COPD Two-Stage AI — Medical Dashboard
+//               Premium header banner + Backend PDF report
 ////////////////////////////////////////////////////////////////////
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  UploadCloud, Loader2, Info, ChevronRight, ChevronDown,
+  UploadCloud, Loader2, Info, ChevronRight, ChevronDown, ChevronUp,
   Activity, Download, AlertTriangle, CheckCircle2,
   Wind, FileBarChart2, Stethoscope, Trophy, BarChart3,
 } from "lucide-react";
@@ -16,6 +16,55 @@ import axiosInstance from "../../api/axiosInstance";
 import Navbar from "../../components/Navbar";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+/* ─────────────────────────────────────────────
+   GLOBAL STYLES — matches Kidney.jsx pattern
+───────────────────────────────────────────── */
+const GLOBAL_CSS = `
+  :root {
+    --l-bg:      #f0fdfa;
+    --l-surface: #ffffff;
+    --l-accent:  #06b6d4;
+    --l-primary: #0d9488;
+    --l-border:  #ccfbf1;
+    --l-text:    #0f172a;
+    --l-muted:   #64748b;
+  }
+  .ld-root {
+    background: var(--l-bg);
+    min-height: 100vh;
+    padding-bottom: 80px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .ld-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  .ld-header-banner {
+    background: linear-gradient(135deg, #042f2e 0%, #0d3349 100%);
+    padding: 40px 0;
+    margin-bottom: 40px;
+    color: white;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .ld-logo {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+  }
+  .ld-logo span { color: #2dd4bf; }
+  .ld-tagline {
+    font-size: 0.75rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--l-muted);
+    opacity: 0.8;
+  }
+`;
+
 
 /* ═══════════════════════════════════════════════════════════════
    CLINICAL FIELD META  (GOLD 2024 + Kaggle dataset reference)
@@ -361,6 +410,52 @@ const riskOf = (confidence) => {
     strip: "bg-emerald-500",
     label: "Low Risk",
     sub: "Routine Monitoring Recommended",
+  };
+};
+
+/* GOLD-stage-based colour map — 1=green, 2=amber, 3=orange, 4=red */
+const goldRisk = (goldStage) => {
+  const map = {
+    1: {
+      color: "text-emerald-600",
+      barBg: "bg-emerald-500",
+      badgeBg: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      strip: "bg-emerald-500",
+      label: "GOLD 1 — Mild",
+      sub: "Lifestyle Modification Recommended",
+    },
+    2: {
+      color: "text-amber-600",
+      barBg: "bg-amber-400",
+      badgeBg: "bg-amber-50 text-amber-700 border-amber-200",
+      strip: "bg-amber-400",
+      label: "GOLD 2 — Moderate",
+      sub: "Pulmonary Rehabilitation Advised",
+    },
+    3: {
+      color: "text-orange-600",
+      barBg: "bg-orange-500",
+      badgeBg: "bg-orange-50 text-orange-700 border-orange-200",
+      strip: "bg-orange-500",
+      label: "GOLD 3 — Severe",
+      sub: "Specialist Referral Required",
+    },
+    4: {
+      color: "text-red-600",
+      barBg: "bg-red-500",
+      badgeBg: "bg-red-50 text-red-700 border-red-200",
+      strip: "bg-red-500",
+      label: "GOLD 4 — Very Severe",
+      sub: "Immediate Clinical Attention Required",
+    },
+  };
+  return map[goldStage] || {
+    color: "text-slate-600",
+    barBg: "bg-slate-400",
+    badgeBg: "bg-slate-50 text-slate-700 border-slate-200",
+    strip: "bg-slate-400",
+    label: "Unknown",
+    sub: "Assessment Required",
   };
 };
 
@@ -1252,12 +1347,31 @@ const Lungs = () => {
     }
   };
 
-  /* ── Inline PDF (mirrors Kidney.jsx generatePDF pattern) ── */
-  const handleDownloadPDF = () => {
-    generatePDF(clinicalData, stage1Result, stage2Result);
+  /* ── Backend PDF download — matches Kidney.jsx pattern ── */
+  const handleDownloadPDF = async () => {
+    try {
+      const payload = {
+        stage1:        stage1Result,
+        stage2:        stage2Result,
+        clinical_data: { ...DEFAULT_VALUES, ...clinicalData },
+      };
+      const response = await axiosInstance.post("/lung/report", payload, {
+        responseType: "blob",
+      });
+      const url  = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href  = url;
+      link.setAttribute("download", `MediSense_Lung_COPD_Report_${Date.now()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to download lung report.");
+    }
   };
 
-  const risk = stage2Result ? riskOf(stage2Result.confidence) : null;
+  const risk = stage2Result ? goldRisk(stage2Result.gold_stage) : null;
 
   const grouped = {
     critical: Object.keys(FIELD_META).filter((k) => FIELD_META[k].level === "critical"),
@@ -1267,40 +1381,20 @@ const Lungs = () => {
 
   return (
     <>
-      <div className="min-h-screen font-sans bg-appbg">
-        <Navbar />
+      <style>{GLOBAL_CSS}</style>
+      <Navbar />
+      <div className="ld-root">
+        <header className="ld-header-banner">
+          <div className="ld-container">
+            <motion.h1 initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} className="ld-logo">
+              MEDISENSE <span>LUNG</span>
+            </motion.h1>
+            <p className="ld-tagline">Predict &gt; Prevent &gt; Cure</p>
+          </div>
+        </header>
 
-        <main className="max-w-5xl mx-auto px-4 py-10 space-y-5">
+        <main className="ld-container space-y-5">
 
-          {/* ── PAGE HEADER ── */}
-          <motion.div initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Wind size={16} className="text-teal-600" />
-                  <span className="text-xs text-slate-400 uppercase tracking-wide font-semibold">
-                    Clinical AI System
-                  </span>
-                </div>
-                <h1 className="font-sans text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                  COPD <span style={{ color: "#0d9488" }}>Prediction</span> System
-                </h1>
-                <p className="text-xs text-slate-400 mt-1">
-                  Two-stage AI pipeline · Breath acoustics → GOLD severity grading
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200
-                                 text-teal-700 font-semibold uppercase">
-                  GOLD 2024
-                </span>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200
-                                 text-blue-700 font-semibold uppercase">
-                  v2.0
-                </span>
-              </div>
-            </div>
-          </motion.div>
 
           {/* ── STAGE 1 ── */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
@@ -1644,31 +1738,19 @@ const Lungs = () => {
                     stageName="Stage 2"
                   />
 
-                  {/* PDF download button — mirrors Kidney.jsx style */}
+                  {/* PDF download button */}
                   <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                     <span className="text-xs text-slate-400 italic">
                       Report generated via COPD AI · {new Date().toLocaleDateString("en-IN")}
                     </span>
                     <button
                       onClick={handleDownloadPDF}
-                      style={{
-                        padding: "10px 16px",
-                        borderRadius: "8px",
-                        border: "none",
-                        background: "#0d9488",
-                        color: "#fff",
-                        fontWeight: "600",
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        fontSize: "0.875rem",
-                      }}
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all"
                     >
-                      <Download size={14} />
-                      Download Report PDF 📄
+                      <Download size={16} />Export Medical Report
                     </button>
                   </div>
+
                 </Card>
               </motion.div>
             )}
