@@ -560,77 +560,43 @@ function Kidney() {
     }
   };
 
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    const primary = [41, 128, 185];
-    const dark = [40, 40, 40];
-    const pageHeight = doc.internal.pageSize.height;
-
-    const addHeader = () => {
-      doc.setFillColor(...primary);
-      doc.rect(0, 0, 210, 25, "F");
-      doc.setTextColor(255);
-      doc.setFontSize(16);
-      doc.text("MediSense Kidney — Diagnostic Report", 14, 15);
-      doc.setFontSize(9);
-      doc.text("AI-Powered Kidney Disease Prediction · MediSense", 14, 21);
-      doc.setTextColor(...dark);
-    };
-
-    const addFooter = () => {
-      doc.setDrawColor(200);
-      doc.line(14, pageHeight - 15, 196, pageHeight - 15);
-      doc.setFontSize(8);
-      doc.setTextColor(120);
-      doc.text("Disclaimer: AI-generated report. Not a medical diagnosis.", 14, pageHeight - 10);
-      doc.text(`Page ${doc.internal.getNumberOfPages()}`, 180, pageHeight - 5);
-    };
-
-    addHeader();
-    let y = 35;
-    doc.setFontSize(12); doc.setTextColor(...primary);
-    doc.text("General Information", 14, y);
-    doc.line(14, y + 2, 196, y + 2);
-    doc.setTextColor(...dark); doc.setFontSize(10);
-    y += 10;
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, y);
-    doc.text(`Age: ${formData.age || "N/A"}`, 120, y);
-
-    y += 10;
-    doc.setTextColor(...primary); doc.setFontSize(12);
-    doc.text("Clinical Parameters", 14, y);
-    
-    autoTable(doc, {
-      startY: y + 4,
-      head: [["Parameter", "Value", "Ref Range"]],
-      body: Object.keys(FIELD_META).map(k => [FIELD_META[k].label, formData[k] || DEFAULT_VALUES[k] || "N/A", FIELD_META[k].tooltip.normal]),
-      theme: "grid", styles: { fontSize: 9 }, headStyles: { fillColor: primary, textColor: 255 }
-    });
-
-    let finalY = doc.lastAutoTable.finalY + 15;
-    doc.setDrawColor(...primary); doc.rect(14, finalY, 182, 35);
-    doc.setFontSize(12); doc.setTextColor(...primary); doc.text("AI Diagnostic Summary", 18, finalY + 8);
-    doc.setFontSize(10); doc.setTextColor(...dark);
-    doc.text(`Disease Status : ${result.disease}`, 18, finalY + 16);
-    doc.text(`Risk Level     : ${result.criticality}`, 18, finalY + 22);
-    doc.text(`Confidence     : ${result.confidence}`, 18, finalY + 28);
-
-    if (result.model_results) {
-      finalY += 45;
-      doc.text("Model Consensus", 14, finalY);
-      autoTable(doc, {
-        startY: finalY + 4,
-        margin: { top: 35 },
-        head: [["Model", "Prediction", "Confidence"]],
-        body: Object.entries(result.model_results).map(([n,v]) => [n, `Stage ${v.stage}`, `${v.confidence}%`]),
-        theme: "grid", styles: { fontSize: 8 }
+  const handleDownloadPDF = async () => {
+    try {
+      const highFields = ["age", "gfr", "serum_creatinine", "bun", "serum_calcium", "oxalate_levels", "urine_ph", "blood_pressure", "months", "c3_c4", "water_intake"];
+      const formattedHigh = {};
+      highFields.forEach(f => {
+        const val = formData[f];
+        formattedHigh[f] = val === "" ? null : Number(val);
       });
-    }
 
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) { doc.setPage(i); addFooter(); }
-    doc.save("MediSense_Kidney_Report.pdf");
+      const payload = {
+        ...formattedHigh,
+        ana: yesNoToBinary(formData.ana, "ana"),
+        hematuria: yesNoToBinary(formData.hematuria, "hematuria"),
+        painkiller_usage: yesNoToBinary(formData.painkiller_usage, "painkiller_usage"),
+        family_history: yesNoToBinary(formData.family_history, "family_history"),
+        physical_activity: formData.physical_activity || DEFAULT_VALUES.physical_activity,
+        diet: formData.diet || DEFAULT_VALUES.diet,
+        smoking: formData.smoking || DEFAULT_VALUES.smoking,
+        alcohol: formData.alcohol || DEFAULT_VALUES.alcohol,
+        weight_changes: formData.weight_changes || DEFAULT_VALUES.weight_changes,
+        stress_level: formData.stress_level || DEFAULT_VALUES.stress_level,
+      };
+
+      const response = await axiosInstance.post("/kidney/report", payload, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `MediSense_Kidney_Report_${Date.now()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to download kidney report.");
+    }
   };
+
 
   return (
     <>
@@ -702,7 +668,7 @@ function Kidney() {
                   </div>
                   <ModelConfidenceTable models={result.model_results} expanded={showModels} onToggle={() => setShowModels(!showModels)} />
                   <div className="mt-10 flex justify-end">
-                    <button onClick={generatePDF} className="inline-flex items-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all"><Download size={16} />Export Medical Report</button>
+                    <button onClick={handleDownloadPDF} className="inline-flex items-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all"><Download size={16} />Export Medical Report</button>
                   </div>
                 </Card>
               </motion.div>

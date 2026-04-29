@@ -347,7 +347,19 @@ const FieldInput = ({ name, value, onChange }) => {
 
 const ModelConfidenceTable = ({ models, expanded, onToggle }) => {
   if (!models) return null;
-  const agreementCount = models.filter(m => m.prediction === models[0].prediction).length;
+
+  // Convert dictionary {"Model Name": Confidence} to array of objects
+  const modelArray = Object.entries(models).map(([name, conf]) => ({
+    model_name: name,
+    confidence: conf,
+    // For liver, we assume they agree if they are in this list (simplified)
+    // or we could show prediction if we had it. For now, focus on confidence.
+    prediction: conf >= 50 ? "Positive" : "Negative" 
+  })).sort((a, b) => b.confidence - a.confidence);
+
+  const avgConfidence = modelArray.length > 0 
+    ? (modelArray.reduce((acc, curr) => acc + curr.confidence, 0) / modelArray.length).toFixed(2)
+    : 0;
 
   return (
     <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50">
@@ -356,7 +368,7 @@ const ModelConfidenceTable = ({ models, expanded, onToggle }) => {
           <div className="p-1.5 bg-teal-100 rounded-lg text-teal-600"><FileText size={14} /></div>
           <div className="text-left">
             <p className="text-[0.7rem] font-bold text-slate-800 uppercase tracking-tight">Model Consensus Analysis</p>
-            <p className="text-[0.65rem] text-slate-500">{agreementCount} of {models.length} sub-models agree on diagnosis</p>
+            <p className="text-[0.65rem] text-slate-500">Average System Confidence: {avgConfidence}%</p>
           </div>
         </div>
         {expanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
@@ -365,20 +377,18 @@ const ModelConfidenceTable = ({ models, expanded, onToggle }) => {
         {expanded && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden border-t border-slate-200 bg-white">
             <div className="p-4 space-y-3">
-              {models.map(m => (
+              {modelArray.map(m => (
                 <div key={m.model_name} className="space-y-1.5">
                   <div className="flex justify-between items-center text-[0.7rem]">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-700">{m.model_name}</span>
-                      {m.is_primary && <Trophy size={10} className="text-amber-500" />}
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`px-1.5 py-0.5 rounded text-[0.6rem] font-bold ${m.prediction === models[0].prediction ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-50 text-slate-400 border border-slate-100"}`}>{m.prediction}</span>
                       <span className="font-mono font-bold text-slate-600 w-10 text-right">{m.confidence}%</span>
                     </div>
                   </div>
                   <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${m.confidence}%` }} className={`h-full rounded-full ${m.prediction === models[0].prediction ? "bg-teal-500" : "bg-slate-300"}`} />
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${m.confidence}%` }} className="h-full rounded-full bg-teal-500" />
                   </div>
                 </div>
               ))}

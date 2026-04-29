@@ -7,10 +7,13 @@
 #
 ####################################################################
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response, send_file
 from flask_jwt_extended import jwt_required
 from app.services.kidney_service import predict_kidney_disease
-from app.services.kidney_report_assembler import assemble_kidney_report
+from app.services.kidney_report_service import (
+    generate_report,
+    generate_pdf_from_report
+)
 
 from app.utils.jwt_utils import role_required
 from app.utils.constants import UserRole
@@ -45,55 +48,45 @@ def predict():
         return jsonify({"error": str(e)}), 500
 
 
-
 """
 ################################################################
 #
-# Function Name : predict_kidney_report
+# Function Name : generate_kidney_report
 # Description   : API endpoint for kidney PDF report generation
-# Author        : Ankita Pandit Sawant
-# Date          : 30/03/26
-# Prototype     : Response predict_kidney_report(void)
+# Author        : Ankita Pandit Sawant / Antigravity AI
+# Date          : 29/04/26
+# Prototype     : Response generate_kidney_report(void)
 # Input Output  : (1 input, 1 output)
 #
 ################################################################
 """
-@kidney_blueprint.route("/predict-report", methods=["POST"])
-def predict_kidney_report():
+@kidney_blueprint.route("/report", methods=["POST"])
+def generate_kidney_report():
     try:
         data = request.get_json()
 
         if not data:
             return jsonify({"error": "Empty input payload"}), 400
 
-        # Extract patient & features
-        patient = data.get("patient")
-        features = data.get("features")
-
-        if not features:
-            return jsonify({"error": "Missing features data"}), 400
-
         # Step 1: Model Prediction
-        prediction_result = predict_kidney_disease(features)
+        prediction_result = predict_kidney_disease(data)
+
+        if not prediction_result or "error" in prediction_result:
+             return jsonify({"error": "Prediction failed"}), 500
 
         # Step 2: Assemble Report
-        report = assemble_kidney_report(
-            prediction_result,
-            patient=patient,
-            features=features
-        )
+        report = generate_report(data, prediction_result)
 
         # Step 3: Generate PDF
-        pdf_buffer = generate_kidney_pdf(report)
+        pdf_bytes = generate_pdf_from_report(report)
 
         # Step 4: Return PDF
-        return send_file(
-            pdf_buffer,
-            as_attachment=True,
-            download_name="kidney_report.pdf",
-            mimetype="application/pdf"
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': 'attachment;filename=MediSense_Kidney_Report.pdf'}
         )
 
     except Exception as e:
         print("Kidney report error:", e)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500

@@ -335,6 +335,9 @@ def generate_pdf_from_report(report: dict) -> bytes:
         "body_bold": ParagraphStyle(
             name="body_bold", fontSize=9, leading=13, textColor=colors.black, fontName="Helvetica-Bold"
         ),
+        "body_bold_white": ParagraphStyle(
+            name="body_bold_white", fontSize=9, leading=13, textColor=colors.white, fontName="Helvetica-Bold"
+        ),
         "stat": ParagraphStyle(
             name="stat", fontSize=9, alignment=TA_CENTER
         )
@@ -384,11 +387,11 @@ def generate_pdf_from_report(report: dict) -> bytes:
     story.append(Paragraph("CLINICAL LABORATORY ANALYSIS", styles["section_heading"]))
     story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
     
-    rows = [[Paragraph("<b>Parameter</b>", styles["body_bold"]), 
-             Paragraph("<b>Observed</b>", styles["body_bold"]), 
-             Paragraph("<b>Unit</b>", styles["body_bold"]), 
-             Paragraph("<b>Reference</b>", styles["body_bold"]), 
-             Paragraph("<b>Status</b>", styles["body_bold"])]]
+    rows = [[Paragraph("<b>Parameter</b>", styles["body_bold_white"]), 
+             Paragraph("<b>Observed</b>", styles["body_bold_white"]), 
+             Paragraph("<b>Unit</b>", styles["body_bold_white"]), 
+             Paragraph("<b>Reference</b>", styles["body_bold_white"]), 
+             Paragraph("<b>Status</b>", styles["body_bold_white"])]]
     
     for item in report["laboratory_values"]:
         status_color = _RED if item["status"] != "Normal" else _GREEN
@@ -418,9 +421,9 @@ def generate_pdf_from_report(report: dict) -> bytes:
     
     models = report["model_confidence"]["model_results"]
     if models:
-        c_rows = [[Paragraph("<b>Sub-Model</b>", styles["body_bold"]), 
-                   Paragraph("<b>Prediction</b>", styles["body_bold"]), 
-                   Paragraph("<b>Certainty</b>", styles["body_bold"])]]
+        c_rows = [[Paragraph("<b>Sub-Model</b>", styles["body_bold_white"]), 
+                   Paragraph("<b>Prediction</b>", styles["body_bold_white"]), 
+                   Paragraph("<b>Certainty</b>", styles["body_bold_white"])]]
         for m in models:
             name = f"<b>{m['model_name']}</b> (Primary)" if m.get("is_primary") else m["model_name"]
             c_rows.append([Paragraph(name, styles["body"]), m["prediction"], f"{m['confidence']}%"])
@@ -436,8 +439,8 @@ def generate_pdf_from_report(report: dict) -> bytes:
     
     story.append(Spacer(1, 6*mm))
 
-    # 5. Final Recommendation
-    story.append(Paragraph("CLINICAL INTERPRETATION & ACTION PLAN", styles["section_heading"]))
+    # 5. Clinical Interpretation & Recommendation
+    story.append(Paragraph("CLINICAL INTERPRETATION & RECOMMENDATION", styles["section_heading"]))
     story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
     story.append(Paragraph(report["clinical_interpretation"], styles["body"]))
     story.append(Spacer(1, 3*mm))
