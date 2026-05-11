@@ -67,9 +67,8 @@ function Login() {
         setIsSignIn(true);
       }
     } catch (error) {
-      setErrorMessage(
-        error.message || "Authentication failed. Please try again."
-      );
+      const msg = error.response?.data?.error || error.message || "Authentication failed. Please try again.";
+      setErrorMessage(msg);
     } finally {
       setLoading(false);
     }

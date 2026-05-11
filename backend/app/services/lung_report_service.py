@@ -17,6 +17,7 @@
 ####################################################################
 
 import io
+import os
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -25,8 +26,13 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable,
+    HRFlowable, Image,
 )
+
+# ── Plot image paths ───────────────────────────────────────────────────
+_PLOTS_DIR     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "plots")
+_PLOT_STAGE1   = os.path.normpath(os.path.join(_PLOTS_DIR, "lungs_stage1.png"))
+_PLOT_STAGE2   = os.path.normpath(os.path.join(_PLOTS_DIR, "lung_stage2.png"))
 
 # ── Colour palette (Lung Theme — Teal/Cyan) ───────────────────────────
 _DEEP_TEAL  = colors.HexColor("#042f2e")
@@ -435,6 +441,35 @@ def generate_pdf_from_report(report: dict) -> bytes:
             f"<b>GOLD Recommendation:</b> {report['stage2']['recommendation']}",
             S["body"]
         ))
+
+    # ── Model Performance Graphs ──────────────────────────────────────
+    story.append(Spacer(1, 6*mm))
+    story.append(Paragraph("MODEL PERFORMANCE ANALYSIS — STAGE 1", S["section_heading"]))
+    story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
+    story.append(Paragraph(
+        "Accuracy, Recall and F1-Score comparison across all ensemble sub-models used in Stage 1 breath acoustics classification.",
+        S["body"]
+    ))
+    story.append(Spacer(1, 3*mm))
+    if os.path.exists(_PLOT_STAGE1):
+        img1 = Image(_PLOT_STAGE1, width=170*mm, height=80*mm)
+        img1.hAlign = "CENTER"
+        story.append(img1)
+    story.append(Spacer(1, 5*mm))
+
+    if report["stage2"]:
+        story.append(Paragraph("MODEL PERFORMANCE ANALYSIS — STAGE 2", S["section_heading"]))
+        story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
+        story.append(Paragraph(
+            "Accuracy, Recall and F1-Score comparison across all ensemble sub-models used in Stage 2 GOLD severity grading.",
+            S["body"]
+        ))
+        story.append(Spacer(1, 3*mm))
+        if os.path.exists(_PLOT_STAGE2):
+            img2 = Image(_PLOT_STAGE2, width=170*mm, height=80*mm)
+            img2.hAlign = "CENTER"
+            story.append(img2)
+        story.append(Spacer(1, 5*mm))
 
     # ── Disclaimer ────────────────────────────────────────────────────
     story.append(Spacer(1, 10*mm))

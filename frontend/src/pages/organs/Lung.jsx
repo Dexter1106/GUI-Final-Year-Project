@@ -1521,6 +1521,25 @@ const Lungs = () => {
                     stageName="Stage 1"
                   />
 
+                  {/* Stage 1 Model Performance Graph */}
+                  <div className="mt-5 border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-white">
+                      <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600"><FileBarChart2 size={14} /></div>
+                      <div>
+                        <p className="text-[0.7rem] font-bold text-slate-800 uppercase tracking-tight">Stage 1 — Model Performance Analysis</p>
+                        <p className="text-[0.65rem] text-slate-500">Accuracy · Recall · F1 — Stage 1 COPD Detection across all sub-models</p>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <img
+                        src="http://127.0.0.1:5000/api/plots/lungs_stage1.png"
+                        alt="Lung Stage 1 Model Performance Graph"
+                        className="w-full rounded-lg object-contain"
+                        style={{ maxHeight: "300px" }}
+                      />
+                    </div>
+                  </div>
+
                   {/* Classification-specific clinical advice */}
                   {stage1Result.prediction === "COPD" && (
                     <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50
@@ -1737,6 +1756,25 @@ const Lungs = () => {
                     onToggle={() => setShowS2Models((p) => !p)}
                     stageName="Stage 2"
                   />
+
+                  {/* Stage 2 Model Performance Graph */}
+                  <div className="mt-5 border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-white">
+                      <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600"><FileBarChart2 size={14} /></div>
+                      <div>
+                        <p className="text-[0.7rem] font-bold text-slate-800 uppercase tracking-tight">Stage 2 — Model Performance Analysis</p>
+                        <p className="text-[0.65rem] text-slate-500">Accuracy · Recall · F1 — Stage 2 GOLD Severity Grading across all sub-models</p>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <img
+                        src="http://127.0.0.1:5000/api/plots/lung_stage2.png"
+                        alt="Lung Stage 2 Model Performance Graph"
+                        className="w-full rounded-lg object-contain"
+                        style={{ maxHeight: "300px" }}
+                      />
+                    </div>
+                  </div>
 
                   {/* PDF download button */}
                   <div className="flex justify-between items-center pt-4 border-t border-slate-100">

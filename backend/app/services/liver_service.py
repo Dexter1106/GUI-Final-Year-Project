@@ -519,13 +519,18 @@ def generate_report(patient_data, prediction_result: dict) -> dict:
 # SECTION 4 — PDF GENERATOR
 # ====================================================================
 
+import os
 import io
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether, Image
+
+# ── Plot image path ─────────────────────────────────────────────────
+_PLOTS_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "plots")
+_PLOT_LIVER = os.path.normpath(os.path.join(_PLOTS_DIR, "liver.png"))
 
 _NAVY       = colors.HexColor("#1B3A5C")
 _TEAL       = colors.HexColor("#1A7A8A")
@@ -643,5 +648,20 @@ def generate_pdf_from_report(report: dict) -> bytes:
     story.append(Paragraph(report.get("clinical_interpretation", ""), styles["body"]))
     story.append(Spacer(1, 2*mm))
     story.append(Paragraph(f"<b>Recommendation:</b> {report.get('final_recommendation', '')}", styles["body"]))
+
+    # Model Performance Graph
+    story.append(Spacer(1, 6*mm))
+    story.append(_section_heading("Model Performance Analysis", styles))
+    story.append(Paragraph(
+        "Accuracy, Macro Recall and Macro F1-Score comparison across all ensemble sub-models used in liver disease classification.",
+        styles["body"]
+    ))
+    story.append(Spacer(1, 3*mm))
+    if os.path.exists(_PLOT_LIVER):
+        img = Image(_PLOT_LIVER, width=170*mm, height=85*mm)
+        img.hAlign = "CENTER"
+        story.append(img)
+    story.append(Spacer(1, 5*mm))
+
     story.append(Spacer(1, 10*mm)); story.append(HRFlowable(width="100%", thickness=0.5, color=_MID_GREY)); story.append(Paragraph(f"<i>Disclaimer: {report.get('medical_disclaimer', '')}</i>", styles["disclaimer"]))
     doc.build(story); return buffer.getvalue()

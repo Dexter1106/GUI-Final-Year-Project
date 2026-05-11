@@ -516,6 +516,25 @@ function HeartApp() {
                   </div>
 
                   <ModelConfidenceTable models={result.model_results} expanded={showModels} onToggle={() => setShowModels(!showModels)} />
+
+                  {/* Model Performance Graph */}
+                  <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-white">
+                      <div className="p-1.5 bg-red-100 rounded-lg text-red-600"><FileBarChart2 size={14} /></div>
+                      <div>
+                        <p className="text-[0.7rem] font-bold text-slate-800 uppercase tracking-tight">Model Performance Analysis</p>
+                        <p className="text-[0.65rem] text-slate-500">Accuracy · Macro Recall · Macro F1-Score — across all sub-models</p>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <img
+                        src="http://127.0.0.1:5000/api/plots/heart.png"
+                        alt="Heart Model Performance Graph"
+                        className="w-full rounded-lg object-contain"
+                        style={{ maxHeight: "320px" }}
+                      />
+                    </div>
+                  </div>
                 </Card>
               </motion.div>
             )}

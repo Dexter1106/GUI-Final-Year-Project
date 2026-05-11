@@ -675,6 +675,25 @@ function Kidney() {
                     </div>
                   </div>
                   <ModelConfidenceTable models={result.model_results} expanded={showModels} onToggle={() => setShowModels(!showModels)} />
+
+                  {/* Model Performance Graph */}
+                  <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-white">
+                      <div className="p-1.5 bg-indigo-100 rounded-lg text-indigo-600"><FileBarChart2 size={14} /></div>
+                      <div>
+                        <p className="text-[0.7rem] font-bold text-slate-800 uppercase tracking-tight">Model Performance Analysis</p>
+                        <p className="text-[0.65rem] text-slate-500">Accuracy · Macro Recall · Macro F1 — CKD Stage Classification across all sub-models</p>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <img
+                        src="http://127.0.0.1:5000/api/plots/kidney.png"
+                        alt="Kidney Model Performance Graph"
+                        className="w-full rounded-lg object-contain"
+                        style={{ maxHeight: "320px" }}
+                      />
+                    </div>
+                  </div>
                   <div className="mt-10 flex justify-end">
                     <button onClick={handleDownloadPDF} className="inline-flex items-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all"><Download size={16} />Export Medical Report</button>
                   </div>

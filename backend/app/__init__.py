@@ -7,7 +7,8 @@
 #
 ####################################################################
 
-from flask import Flask
+from flask import Flask, send_from_directory
+import os
 from config import Config
 from app.extensions import mongo, jwt
 from flask_cors import CORS
@@ -65,6 +66,13 @@ def create_app():
     application.register_blueprint(liver_blueprint, url_prefix="/api/liver")
     application.register_blueprint(kidney_blueprint, url_prefix="/api/kidney")
     application.register_blueprint(heart_blueprint, url_prefix="/api/heart")
+
+    # ================= PLOTS STATIC ENDPOINT =================
+    _PLOTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plots")
+
+    @application.route("/api/plots/<path:filename>", methods=["GET"])
+    def serve_plot(filename):
+        return send_from_directory(_PLOTS_DIR, filename)
 
     # ================= HEALTH CHECK ROUTE =================
     """

@@ -18,8 +18,12 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, KeepTogether
+    HRFlowable, KeepTogether, Image
 )
+
+# ── Plot image path ─────────────────────────────────────────────────
+_PLOTS_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "plots")
+_PLOT_KIDNEY = os.path.normpath(os.path.join(_PLOTS_DIR, "kidney.png"))
 
 # ── Colour palette (Kidney Theme — Purple/Indigo) ─────────────────────
 _DEEP_PURPLE = colors.HexColor("#2E1A47")
@@ -275,7 +279,22 @@ def generate_pdf_from_report(report: dict) -> bytes:
     story.append(Paragraph(report["clinical_interpretation"], styles["body"]))
     story.append(Spacer(1, 3*mm))
     story.append(Paragraph(f"<b>Recommendation:</b> {report['final_recommendation']}", styles["body"]))
-    
+
+    # 6. Model Performance Graph
+    story.append(Spacer(1, 6*mm))
+    story.append(Paragraph("MODEL PERFORMANCE ANALYSIS", styles["section_heading"]))
+    story.append(HRFlowable(width="100%", thickness=1, color=_PURPLE, spaceAfter=4))
+    story.append(Paragraph(
+        "Accuracy, Macro Recall and Macro F1-Score comparison across all ensemble sub-models used in CKD stage classification.",
+        styles["body"]
+    ))
+    story.append(Spacer(1, 3*mm))
+    if os.path.exists(_PLOT_KIDNEY):
+        img = Image(_PLOT_KIDNEY, width=170*mm, height=85*mm)
+        img.hAlign = "CENTER"
+        story.append(img)
+    story.append(Spacer(1, 5*mm))
+
     story.append(Spacer(1, 10*mm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=_MID_GREY))
     story.append(Paragraph(f"<i>Disclaimer: {report['medical_disclaimer']}</i>", styles["body"]))
