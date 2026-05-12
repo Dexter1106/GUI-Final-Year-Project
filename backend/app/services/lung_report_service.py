@@ -11,13 +11,14 @@
 #                  5. Model Consensus — Stage 1
 #                  6. Model Consensus — Stage 2
 #                  7. Clinical Interpretation & Recommendation
+#                  8. Model Performance Benchmark — Stage 1
+#                  9. Model Performance Benchmark — Stage 2
 # Author       : Antigravity AI
 # Date         : 29/04/26
 #
 ####################################################################
 
 import io
-import os
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -26,13 +27,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, Image,
+    HRFlowable,
 )
-
-# ── Plot image paths ───────────────────────────────────────────────────
-_PLOTS_DIR     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "plots")
-_PLOT_STAGE1   = os.path.normpath(os.path.join(_PLOTS_DIR, "lungs_stage1.png"))
-_PLOT_STAGE2   = os.path.normpath(os.path.join(_PLOTS_DIR, "lung_stage2.png"))
 
 # ── Colour palette (Lung Theme — Teal/Cyan) ───────────────────────────
 _DEEP_TEAL  = colors.HexColor("#042f2e")
@@ -84,7 +80,6 @@ STAGE1_CLINICAL = {
 }
 
 # ── Numeric clinical parameters with reference ranges ──────────────────
-#    (evaluated for Normal / High / Low status)
 NUMERIC_PARAMS = {
     "Respiratory Rate":  {"name": "Respiratory Rate",  "unit": "br/min",  "low": 12,   "high": 20},
     "Oxygen Saturation": {"name": "SpO\u2082",              "unit": "%",       "low": 88,   "high": 100},
@@ -98,7 +93,7 @@ NUMERIC_PARAMS = {
     "mMRC":              {"name": "mMRC Dyspnea Scale","unit": "0\u20134",     "low": 0,    "high": 1},
 }
 
-# ── Categorical clinical parameters (display value label only) ─────────
+# ── Categorical clinical parameters ────────────────────────────────────
 CATEGORICAL_PARAMS = {
     "Gender":                   {"name": "Gender",                "map": {1: "Male",              0: "Female"}},
     "working place":            {"name": "Workplace Exposure",    "map": {1: "Industrial",         0: "Non-Industrial"}},
@@ -110,6 +105,42 @@ CATEGORICAL_PARAMS = {
     "Dependent":                {"name": "Functional Dependence", "map": {1: "Dependent",          0: "Independent"}},
 }
 
+# ── Model benchmark data — Stage 1 (COPD Screening) ───────────────────
+STAGE1_BENCHMARKS = [
+    {"model": "Logistic Regression",    "accuracy": 0.8289},
+    {"model": "Linear SVM",             "accuracy": 0.8190},
+    {"model": "RBF SVM",                "accuracy": 0.8157},
+    {"model": "Decision Tree",          "accuracy": 0.8421},
+    {"model": "Random Forest",          "accuracy": 0.8880},
+    {"model": "Extra Trees",            "accuracy": 0.9029},
+    {"model": "Decision Tree (Tuned)",  "accuracy": 0.8815},
+    {"model": "Gradient Boosting",      "accuracy": 0.8782},
+    {"model": "AdaBoost",               "accuracy": 0.7878},
+    {"model": "Gaussian Naive Bayes",   "accuracy": 0.7153},
+    {"model": "K-Nearest Neighbors",    "accuracy": 0.8323},
+    {"model": "Voting (Hard)",          "accuracy": 0.8864},
+    {"model": "Voting (Soft)",          "accuracy": 0.8749},
+    {"model": "Stacking",               "accuracy": 0.8717},
+]
+
+# ── Model benchmark data — Stage 2 (GOLD Severity) ────────────────────
+STAGE2_BENCHMARKS = [
+    {"model": "Logistic Regression",    "accuracy": 0.5802},
+    {"model": "Linear SVM",             "accuracy": 0.5535},
+    {"model": "RBF SVM",                "accuracy": 0.5849},
+    {"model": "Decision Tree",          "accuracy": 0.5493},
+    {"model": "Random Forest",          "accuracy": 0.6295},
+    {"model": "Extra Trees",            "accuracy": 0.6386},
+    {"model": "Decision Tree (Tuned)",  "accuracy": 0.6161},
+    {"model": "Gradient Boosting",      "accuracy": 0.6158},
+    {"model": "AdaBoost",               "accuracy": 0.4728},
+    {"model": "Gaussian Naive Bayes",   "accuracy": 0.5668},
+    {"model": "K-Nearest Neighbors",    "accuracy": 0.5489},
+    {"model": "Voting (Hard)",          "accuracy": 0.6072},
+    {"model": "Voting (Soft)",          "accuracy": 0.6338},
+    {"model": "Stacking",               "accuracy": 0.5711},
+]
+
 
 # ══════════════════════════════════════════════════════════════════════
 #  DATA ASSEMBLER
@@ -118,12 +149,10 @@ CATEGORICAL_PARAMS = {
 def generate_report(stage1: dict, stage2: dict | None, clinical_data: dict) -> dict:
     """Assemble structured data dict consumed by generate_pdf_from_report()."""
 
-    # Stage 1
     s1_prediction = stage1.get("prediction", "Unknown")
     s1_confidence = stage1.get("confidence", 0)
     s1_models     = stage1.get("model_confidences", [])
 
-    # Stage 2
     gold_stage    = stage2.get("gold_stage") if stage2 else None
     s2_confidence = stage2.get("confidence", 0) if stage2 else None
     s2_models     = stage2.get("model_confidences", []) if stage2 else []
@@ -133,7 +162,6 @@ def generate_report(stage1: dict, stage2: dict | None, clinical_data: dict) -> d
         ("Not Assessed", "N/A", "Stage 2 assessment not performed."),
     ) if gold_stage else ("Not Assessed", "N/A", "Stage 2 assessment not performed.")
 
-    # ── Numeric parameters table ──────────────────────────────────────
     numeric_rows = []
     for key, meta in NUMERIC_PARAMS.items():
         val = clinical_data.get(key)
@@ -157,7 +185,6 @@ def generate_report(stage1: dict, stage2: dict | None, clinical_data: dict) -> d
             "status": status,
         })
 
-    # ── Categorical parameters table ──────────────────────────────────
     categorical_rows = []
     for key, meta in CATEGORICAL_PARAMS.items():
         raw = clinical_data.get(key)
@@ -179,7 +206,7 @@ def generate_report(stage1: dict, stage2: dict | None, clinical_data: dict) -> d
             "prediction":    s1_prediction,
             "confidence":    f"{s1_confidence * 100:.2f}%",
             "clinical_note": STAGE1_CLINICAL.get(s1_prediction, "Clinical evaluation required."),
-            "probabilities": stage1.get("probabilities", {}),  # class probability breakdown
+            "probabilities": stage1.get("probabilities", {}),
             "model_results": s1_models,
         },
         "stage2": {
@@ -231,9 +258,8 @@ def _styles():
     }
 
 
-# ── Helper: build a consensus model table ─────────────────────────────
+# ── Helper: model consensus table ─────────────────────────────────────
 def _model_table(model_list, S):
-    """Return a Table flowable for model consensus. Returns None if empty."""
     valid = [m for m in model_list if not m.get("error") and m.get("confidence") is not None]
     if not valid:
         return None
@@ -260,6 +286,36 @@ def _model_table(model_list, S):
         ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING",    (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    return t
+
+
+# ── Helper: benchmark accuracy table (no highlight) ───────────────────
+def _benchmark_table(benchmarks, S):
+    """Return a Table flowable for model accuracy benchmarks."""
+    rows = [[
+        Paragraph("<b>Model</b>",    S["body_bold_white"]),
+        Paragraph("<b>Accuracy</b>", S["body_bold_white"]),
+    ]]
+    for i, entry in enumerate(benchmarks):
+        model_para = Paragraph(entry["model"], S["body"])
+        acc_para   = Paragraph(
+            f"{entry['accuracy']:.4f}",
+            ParagraphStyle(f"acc_{i}", fontSize=9, alignment=TA_CENTER)
+        )
+        rows.append([model_para, acc_para])
+
+    t = Table(rows, colWidths=[120*mm, 60*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0),  (-1, 0),  _DEEP_TEAL),
+        ("TEXTCOLOR",     (0, 0),  (-1, 0),  _WHITE),
+        ("GRID",          (0, 0),  (-1, -1), 0.5, _MID_GREY),
+        ("VALIGN",        (0, 0),  (-1, -1), "MIDDLE"),
+        ("TOPPADDING",    (0, 0),  (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0),  (-1, -1), 4),
+        ("LEFTPADDING",   (0, 0),  (-1, -1), 6),
+        ("RIGHTPADDING",  (0, 0),  (-1, -1), 6),
+        ("ROWBACKGROUNDS",(0, 1),  (-1, -1), [_LIGHT_TEAL, _WHITE]),
     ]))
     return t
 
@@ -318,7 +374,7 @@ def generate_pdf_from_report(report: dict) -> bytes:
     story.append(Spacer(1, 5*mm))
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # 3.  STAGE 2 — GOLD SEVERITY GRADING  (if present)
+    # 3.  STAGE 2 — GOLD SEVERITY GRADING
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if report["stage2"]:
         s2 = report["stage2"]
@@ -343,13 +399,10 @@ def generate_pdf_from_report(report: dict) -> bytes:
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # 4.  CLINICAL PARAMETERS ANALYSIS
-    #     4a. Vital & Numeric Parameters (with Normal/High/Low)
-    #     4b. Clinical & Categorical Parameters (value display)
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     story.append(Paragraph("CLINICAL PARAMETERS ANALYSIS", S["section_heading"]))
     story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
 
-    # ── 4a. Numeric / Vital signs ──────────────────────────────────
     story.append(Paragraph("Vital & Numeric Parameters", S["sub_heading"]))
 
     num_rows = [[
@@ -385,7 +438,6 @@ def generate_pdf_from_report(report: dict) -> bytes:
     story.append(t)
     story.append(Spacer(1, 4*mm))
 
-    # ── 4b. Categorical / Clinical Parameters ──────────────────────
     story.append(Paragraph("Clinical & Lifestyle Parameters", S["sub_heading"]))
 
     cat_rows = [[
@@ -419,7 +471,7 @@ def generate_pdf_from_report(report: dict) -> bytes:
         story.append(Spacer(1, 6*mm))
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # 6.  MODEL CONSENSUS — STAGE 2  (if present)
+    # 6.  MODEL CONSENSUS — STAGE 2
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if report["stage2"]:
         s2_table = _model_table(report["stage2"]["model_results"], S)
@@ -430,7 +482,7 @@ def generate_pdf_from_report(report: dict) -> bytes:
             story.append(Spacer(1, 6*mm))
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # 6.  CLINICAL INTERPRETATION & RECOMMENDATION
+    # 7.  CLINICAL INTERPRETATION & RECOMMENDATION
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     story.append(Paragraph("CLINICAL INTERPRETATION & RECOMMENDATION", S["section_heading"]))
     story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
@@ -441,35 +493,22 @@ def generate_pdf_from_report(report: dict) -> bytes:
             f"<b>GOLD Recommendation:</b> {report['stage2']['recommendation']}",
             S["body"]
         ))
-
-    # ── Model Performance Graphs ──────────────────────────────────────
     story.append(Spacer(1, 6*mm))
-    story.append(Paragraph("MODEL PERFORMANCE ANALYSIS — STAGE 1", S["section_heading"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
-    story.append(Paragraph(
-        "Accuracy, Recall and F1-Score comparison across all ensemble sub-models used in Stage 1 breath acoustics classification.",
-        S["body"]
-    ))
-    story.append(Spacer(1, 3*mm))
-    if os.path.exists(_PLOT_STAGE1):
-        img1 = Image(_PLOT_STAGE1, width=170*mm, height=80*mm)
-        img1.hAlign = "CENTER"
-        story.append(img1)
-    story.append(Spacer(1, 5*mm))
 
-    if report["stage2"]:
-        story.append(Paragraph("MODEL PERFORMANCE ANALYSIS — STAGE 2", S["section_heading"]))
-        story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
-        story.append(Paragraph(
-            "Accuracy, Recall and F1-Score comparison across all ensemble sub-models used in Stage 2 GOLD severity grading.",
-            S["body"]
-        ))
-        story.append(Spacer(1, 3*mm))
-        if os.path.exists(_PLOT_STAGE2):
-            img2 = Image(_PLOT_STAGE2, width=170*mm, height=80*mm)
-            img2.hAlign = "CENTER"
-            story.append(img2)
-        story.append(Spacer(1, 5*mm))
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # 8.  MODEL PERFORMANCE BENCHMARK — STAGE 1
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    story.append(Paragraph("MODEL PERFORMANCE BENCHMARK — STAGE 1 (COPD Screening)", S["section_heading"]))
+    story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
+    story.append(_benchmark_table(STAGE1_BENCHMARKS, S))
+    story.append(Spacer(1, 6*mm))
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # 9.  MODEL PERFORMANCE BENCHMARK — STAGE 2
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    story.append(Paragraph("MODEL PERFORMANCE BENCHMARK — STAGE 2 (GOLD Severity Classification)", S["section_heading"]))
+    story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
+    story.append(_benchmark_table(STAGE2_BENCHMARKS, S))
 
     # ── Disclaimer ────────────────────────────────────────────────────
     story.append(Spacer(1, 10*mm))

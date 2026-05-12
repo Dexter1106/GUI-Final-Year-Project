@@ -18,12 +18,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, KeepTogether, Image
+    HRFlowable, KeepTogether
 )
-
-# ── Plot image path ─────────────────────────────────────────────────
-_PLOTS_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "plots")
-_PLOT_KIDNEY = os.path.normpath(os.path.join(_PLOTS_DIR, "kidney.png"))
 
 # ── Colour palette (Kidney Theme — Purple/Indigo) ─────────────────────
 _DEEP_PURPLE = colors.HexColor("#2E1A47")
@@ -84,6 +80,22 @@ CLINICAL_NOTES = {
         "Immediate ICU-level specialist care is indicated."
     )
 }
+
+# ── Model benchmark data ─────────────────────────────────────────────
+MODEL_BENCHMARKS = [
+    {"model": "Logistic Regression",    "accuracy": 0.934, "best": False},
+    {"model": "Decision Tree",          "accuracy": 0.991, "best": False},
+    {"model": "Support Vector Machine", "accuracy": 0.895, "best": False},
+    {"model": "K-Nearest Neighbors",    "accuracy": 0.470, "best": False},
+    {"model": "Random Forest",          "accuracy": 0.974, "best": False},
+    {"model": "Gradient Boosting",      "accuracy": 0.993, "best": False},
+    {"model": "AdaBoost",               "accuracy": 0.968, "best": False},
+    {"model": "Naive Bayes",            "accuracy": 0.718, "best": False},
+    {"model": "XGBoost",                "accuracy": 0.985, "best": False},
+    {"model": "Soft Voting Ensemble",   "accuracy": 0.991, "best": False},
+    {"model": "Hard Voting Ensemble",   "accuracy": 0.989, "best": False},
+    {"model": "Stacking Ensemble",      "accuracy": 0.994, "best": False},
+]
 
 def generate_report(input_data: dict, prediction: dict) -> dict:
     """Structures data for the PDF generator."""
@@ -279,21 +291,60 @@ def generate_pdf_from_report(report: dict) -> bytes:
     story.append(Paragraph(report["clinical_interpretation"], styles["body"]))
     story.append(Spacer(1, 3*mm))
     story.append(Paragraph(f"<b>Recommendation:</b> {report['final_recommendation']}", styles["body"]))
-
-    # 6. Model Performance Graph
     story.append(Spacer(1, 6*mm))
-    story.append(Paragraph("MODEL PERFORMANCE ANALYSIS", styles["section_heading"]))
+
+    # 6. Model Performance Benchmark Table (added after clinical interpretation)
+    story.append(Paragraph("MODEL PERFORMANCE BENCHMARK", styles["section_heading"]))
     story.append(HRFlowable(width="100%", thickness=1, color=_PURPLE, spaceAfter=4))
-    story.append(Paragraph(
-        "Accuracy, Macro Recall and Macro F1-Score comparison across all ensemble sub-models used in CKD stage classification.",
-        styles["body"]
-    ))
-    story.append(Spacer(1, 3*mm))
-    if os.path.exists(_PLOT_KIDNEY):
-        img = Image(_PLOT_KIDNEY, width=170*mm, height=85*mm)
-        img.hAlign = "CENTER"
-        story.append(img)
-    story.append(Spacer(1, 5*mm))
+
+    bench_rows = [[
+        Paragraph("<b>Model</b>", styles["body_bold_white"]),
+        Paragraph("<b>Accuracy</b>", styles["body_bold_white"]),
+    ]]
+
+    _GOLD   = colors.HexColor("#F9A825")  # highlight colour for best row
+    _best_row_idx = None
+
+    for i, entry in enumerate(MODEL_BENCHMARKS, start=1):      # start=1 because row 0 is header
+        acc_str = f"{entry['accuracy']:.3f}"
+        if entry["best"]:
+            _best_row_idx = i
+            model_para = Paragraph(f"<b>{entry['model']} ★</b>", styles["body_bold"])
+            acc_para   = Paragraph(f"<b>{acc_str}</b>", ParagraphStyle(
+                "best_acc", fontSize=9, alignment=TA_CENTER,
+                fontName="Helvetica-Bold", textColor=_DEEP_PURPLE
+            ))
+        else:
+            model_para = Paragraph(entry["model"], styles["body"])
+            acc_para   = Paragraph(acc_str, ParagraphStyle(
+                "acc_center", fontSize=9, alignment=TA_CENTER
+            ))
+        bench_rows.append([model_para, acc_para])
+
+    bench_table = Table(bench_rows, colWidths=[120*mm, 60*mm])
+
+    bench_style = [
+        ("BACKGROUND",   (0, 0),  (-1, 0),  _DEEP_PURPLE),
+        ("TEXTCOLOR",    (0, 0),  (-1, 0),  _WHITE),
+        ("GRID",         (0, 0),  (-1, -1), 0.5, _MID_GREY),
+        ("VALIGN",       (0, 0),  (-1, -1), "MIDDLE"),
+        ("TOPPADDING",   (0, 0),  (-1, -1), 4),
+        ("BOTTOMPADDING",(0, 0),  (-1, -1), 4),
+        ("LEFTPADDING",  (0, 0),  (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0),  (-1, -1), 6),
+        # Alternate row shading
+        *[
+            ("BACKGROUND", (0, r), (-1, r), _LIGHT_PURPLE if r % 2 == 0 else _WHITE)
+            for r in range(1, len(bench_rows))
+        ],
+    ]
+
+    # Highlight best-performing row in gold
+    if _best_row_idx is not None:
+        bench_style.append(("BACKGROUND", (0, _best_row_idx), (-1, _best_row_idx), _GOLD))
+
+    bench_table.setStyle(TableStyle(bench_style))
+    story.append(bench_table)
 
     story.append(Spacer(1, 10*mm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=_MID_GREY))

@@ -348,17 +348,27 @@ const FieldInput = ({ name, value, onChange }) => {
 const ModelConfidenceTable = ({ models, expanded, onToggle }) => {
   if (!models) return null;
 
-  // Convert dictionary {"Model Name": Confidence} to array of objects
-  const modelArray = Object.entries(models).map(([name, conf]) => ({
-    model_name: name,
-    confidence: conf,
-    // For liver, we assume they agree if they are in this list (simplified)
-    // or we could show prediction if we had it. For now, focus on confidence.
-    prediction: conf >= 50 ? "Positive" : "Negative" 
-  })).sort((a, b) => b.confidence - a.confidence);
+  const toFiniteNumber = (value) => {
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? numberValue : null;
+  };
 
-  const avgConfidence = modelArray.length > 0 
-    ? (modelArray.reduce((acc, curr) => acc + curr.confidence, 0) / modelArray.length).toFixed(2)
+  // Support both legacy { name: confidence } and richer { name: { prediction, confidence } } payloads.
+  const modelArray = Object.entries(models)
+    .map(([name, entry]) => {
+      const entryObject = entry && typeof entry === "object" ? entry : null;
+      const confidence = toFiniteNumber(entryObject ? entryObject.confidence : entry);
+      return {
+        model_name: name,
+        confidence,
+        prediction: entryObject?.prediction ?? (confidence != null ? (confidence >= 50 ? "Positive" : "Negative") : "N/A"),
+      };
+    })
+    .sort((a, b) => (b.confidence ?? -1) - (a.confidence ?? -1));
+
+  const validConfidences = modelArray.map((m) => m.confidence).filter((value) => value != null);
+  const avgConfidence = validConfidences.length > 0 
+    ? (validConfidences.reduce((acc, curr) => acc + curr, 0) / validConfidences.length).toFixed(2)
     : 0;
 
   return (
@@ -384,11 +394,15 @@ const ModelConfidenceTable = ({ models, expanded, onToggle }) => {
                       <span className="font-semibold text-slate-700">{m.model_name}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold text-slate-600 w-10 text-right">{m.confidence}%</span>
+                      <span className="font-mono font-bold text-slate-600 w-10 text-right">{m.confidence != null ? `${m.confidence}%` : "N/A"}</span>
                     </div>
                   </div>
                   <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${m.confidence}%` }} className="h-full rounded-full bg-teal-500" />
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: m.confidence != null ? `${Math.max(0, Math.min(100, m.confidence))}%` : "0%" }}
+                      className="h-full rounded-full bg-teal-500"
+                    />
                   </div>
                 </div>
               ))}

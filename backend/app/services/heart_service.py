@@ -21,12 +21,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, KeepTogether, Image
+    HRFlowable, KeepTogether
 )
-
-# ── Plot image path ─────────────────────────────────────────────────
-_PLOTS_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "plots")
-_PLOT_HEART = os.path.normpath(os.path.join(_PLOTS_DIR, "heart.png"))
 
 # ── Model directory ────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -447,23 +443,37 @@ def generate_pdf_from_report(report: dict) -> bytes:
     story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
     story.append(Paragraph(report["clinical_interpretation"], styles["body"]))
     story.append(Spacer(1, 3*mm))
-    story.append(Paragraph(f"<b>Recommendation:</b> {report['final_recommendation']}", styles["body"]))
 
-    # 6. Model Performance Graph
-    story.append(Spacer(1, 6*mm))
-    story.append(Paragraph("MODEL PERFORMANCE ANALYSIS", styles["section_heading"]))
+    story.append(Paragraph("MODEL ACCURACY COMPARISON", styles["section_heading"]))
     story.append(HRFlowable(width="100%", thickness=1, color=_TEAL, spaceAfter=4))
-    story.append(Paragraph(
-        "Accuracy, Macro Recall and Macro F1-Score comparison across all ensemble sub-models used in cardiovascular disease classification.",
-        styles["body"]
-    ))
-    story.append(Spacer(1, 3*mm))
-    if os.path.exists(_PLOT_HEART):
-        img = Image(_PLOT_HEART, width=170*mm, height=85*mm)
-        img.hAlign = "CENTER"
-        story.append(img)
-    story.append(Spacer(1, 5*mm))
+    accuracy_rows = [
+        [Paragraph("<b>Model</b>", styles["body_bold_white"]), Paragraph("<b>Accuracy</b>", styles["body_bold_white"])],
+        [Paragraph("XGBoost", styles["body"]), Paragraph("73.36", styles["body"])],
+        ["AdaBoost", "72.23"],
+        ["Decision Tree", "71.78"],
+        ["Logistic Regression", "71.36"],
+        ["Random Forest", "71.15"],
+        ["K-Nearest Neighbors", "64.83"],
+        ["Naive Bayes", "58.91"],
+        ["Support Vector Machine", "49.73"],
+        ["Gradient Boosting", "73.07"],
+        ["Stacking Ensemble", "73.29"],
+        ["Hard Voting Ensemble", "73.14"],
+        ["Soft Voting Ensemble", "72.78"]
+    ]
+    t = Table(accuracy_rows, colWidths=[110*mm, 70*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), _NAVY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _WHITE),
+        ("GRID", (0, 0), (-1, -1), 0.5, _MID_GREY),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("PADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 6*mm))
 
+    story.append(Paragraph(f"<b>Recommendation:</b> {report['final_recommendation']}", styles["body"]))
+    
     story.append(Spacer(1, 10*mm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=_MID_GREY))
     story.append(Paragraph(f"<i>Disclaimer: {report['medical_disclaimer']}</i>", styles["body"]))
@@ -472,3 +482,4 @@ def generate_pdf_from_report(report: dict) -> bytes:
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
+    

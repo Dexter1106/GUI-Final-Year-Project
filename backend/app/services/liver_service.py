@@ -60,6 +60,8 @@ model1_sub = {
     "KNN":                 _load("cirhosis/KNNCirh.pkl"),
     "Decision Tree":       _load("cirhosis/DecisionTreeCirh.pkl"),
     "Gradient Boosting":   _load("cirhosis/GradientBoostCirh.pkl"),
+    "SVC":                _load("cirhosis/SVCCirh.pkl"),
+    "Voting Classifier":  _load("cirhosis/VotingClfCirh.pkl"),
 }
 
 # ── Sub-models for Model 2 (ILPD dataset — binary) ────────────────────
@@ -71,6 +73,9 @@ model2_sub = {
     "Decision Tree":       _load("yesno/DecisionTreeClassifier.pkl"),
     "Gradient Boosting":   _load("yesno/GradientBoostingClassifier.pkl"),
     "AdaBoost":            _load("yesno/Adaboost.pkl"),
+    "SVC":                _load("yesno/SVC.pkl"),
+    "Gaussian NB":         _load("yesno/GuassianNB.pkl"),
+    "Voting Classifier":  _load("yesno/yesnoClfCirh.pkl"),
 }
 
 
@@ -94,22 +99,62 @@ def _calculate_ag_ratio(albumin: float, total_protein: float) -> float | None:
 # -----------------------------------------------
 # Utility: Sub-model confidence scores
 # -----------------------------------------------
-def _get_submodel_probabilities(models_dict: dict, input_array: np.ndarray) -> dict:
+_STAGE1_LABELS = {
+    0: "Normal",
+    1: "Hepatitis",
+    2: "Fibrosis",
+    3: "Cirrhosis",
+}
+
+_STAGE2_LABELS = {
+    0: "Early Liver Disease",
+    1: "Healthy",
+}
+
+
+def _format_prediction_label(prediction, label_map: dict[int, str]) -> str:
+    try:
+        return label_map[int(prediction)]
+    except Exception:
+        return str(prediction)
+
+
+def _get_submodel_results(models_dict: dict, input_array: np.ndarray, label_map: dict[int, str]) -> dict:
     """
-    Collects the highest class probability from each sub-model.
+    Collects each sub-model's prediction label and top class confidence.
     """
-    probs = {}
+    results = {}
     for name, model in models_dict.items():
         try:
-            proba = model.predict_proba(input_array)[0]
-            probs[name] = round(float(max(proba)) * 100, 2)
+            prediction = model.predict(input_array)[0]
+            proba = np.asarray(model.predict_proba(input_array)[0], dtype=float)
+            finite_proba = proba[np.isfinite(proba)]
+            confidence = None
+            if finite_proba.size > 0:
+                confidence_value = float(np.max(finite_proba)) * 100
+                if np.isfinite(confidence_value):
+                    confidence = round(confidence_value, 2)
+            results[name] = {
+                "prediction_value": int(prediction) if hasattr(prediction, "__int__") else prediction,
+                "prediction": _format_prediction_label(prediction, label_map),
+                "confidence": confidence,
+            }
         except AttributeError:
             logger.warning("Model '%s' does not support predict_proba.", name)
-            probs[name] = None
+            results[name] = {
+                "prediction_value": None,
+                "prediction": "N/A",
+                "confidence": None,
+            }
         except Exception as exc:
             logger.error("Error from model '%s': %s", name, exc)
-            probs[name] = None
-    return probs
+            results[name] = {
+                "prediction_value": None,
+                "prediction": "Error",
+                "confidence": None,
+                "error": str(exc),
+            }
+    return results
 
 
 ####################################################################
@@ -172,11 +217,11 @@ def predict_liver_disease(input_data: dict) -> dict:
         m1_input_scaled_df = pd.DataFrame(m1_scaled, columns=m1_input_df.columns)
 
         pred1  = int(model1.predict(m1_input_scaled_df)[0])
-        probs1 = _get_submodel_probabilities(model1_sub, m1_input_scaled_df)
+        probs1 = _get_submodel_results(model1_sub, m1_input_scaled_df, _STAGE1_LABELS)
 
         # Calculate average confidence for Stage 1
         conf1 = 0
-        valid1 = [v for v in probs1.values() if v is not None]
+        valid1 = [v.get("confidence") for v in probs1.values() if isinstance(v, dict) and v.get("confidence") is not None]
         if valid1: conf1 = round(sum(valid1) / len(valid1), 2)
 
         # ── Base result ───────────────────────────────────────────
@@ -207,12 +252,12 @@ def predict_liver_disease(input_data: dict) -> dict:
             m2_scaled = scaler2.transform(m2_input)
 
             pred2  = int(model2.predict(m2_scaled)[0])
-            probs2 = _get_submodel_probabilities(model2_sub, m2_scaled)
+            probs2 = _get_submodel_results(model2_sub, m2_scaled, _STAGE2_LABELS)
             result["model2_probabilities"] = probs2
             result["model_results"] = probs2
             
             # Update confidence if Stage 2 is used
-            valid2 = [v for v in probs2.values() if v is not None]
+            valid2 = [v.get("confidence") for v in probs2.values() if isinstance(v, dict) and v.get("confidence") is not None]
             if valid2: result["confidence"] = round(sum(valid2) / len(valid2), 2)
 
             if pred2 == 0:
@@ -421,6 +466,36 @@ CLINICAL_NOTES = {
     "Cirrhosis": "Advanced chronic liver disease (Cirrhosis). Clinical management required.",
 }
 
+MODEL_BENCHMARKS = [
+    {"model": "Logistic Regression",      "accuracy": 0.66},
+    {"model": "Decision Tree",            "accuracy": 0.71},
+    {"model": "Random Forest",            "accuracy": 0.68},
+    {"model": "Support Vector Machine",   "accuracy": 0.61},
+    {"model": "AdaBoost",                 "accuracy": 0.75},
+    {"model": "Gradient Boosting",        "accuracy": 0.73},
+    {"model": "XGBoost",                  "accuracy": 0.77},
+    {"model": "K-Nearest Neighbors",      "accuracy": 0.74},
+    {"model": "Gaussian Naïve Bayes",     "accuracy": 0.51},
+    {"model": "Hard Voting",              "accuracy": 0.82},
+    {"model": "Soft Voting",              "accuracy": 0.79},
+    {"model": "Stacking",                 "accuracy": 0.76},
+]
+
+def _build_clinical_interpretation(disease: str | None, severity_assessment: dict | None) -> str:
+    base = CLINICAL_NOTES.get(disease, "Evaluation required.")
+    if disease == "Cirrhosis":
+        if severity_assessment and severity_assessment.get("transplant_required"):
+            return (
+                f"{base} Severe disease burden detected. Transplant required. "
+                f"Urgent specialist review and treatment required to stabilize liver function."
+            )
+        return (
+            f"{base} Treatment required. Hepatology follow-up, surveillance, and medical management are advised."
+        )
+    if disease in {"Fibrosis", "Hepatitis", "Early Liver Disease"}:
+        return f"{base} Treatment required. Early intervention and close follow-up are recommended."
+    return base
+
 def _build_lab_table(patient_data) -> list[dict]:
     def _get(key):
         if isinstance(patient_data, dict): return patient_data.get(key)
@@ -455,11 +530,43 @@ def _build_lab_table(patient_data) -> list[dict]:
 
 def _build_model_confidence(probabilities: dict | None) -> dict:
     if not probabilities: return {"scores": {}, "average": None, "agreement": "N/A"}
-    valid = {k: v for k, v in probabilities.items() if v is not None}
+    valid = {k: v.get("confidence") for k, v in probabilities.items() if isinstance(v, dict) and v.get("confidence") is not None}
     if not valid: return {"scores": {}, "average": None, "agreement": "N/A"}
     avg = round(sum(valid.values()) / len(valid), 1)
     agr = "High" if avg >= 85 else ("Moderate" if avg >= 70 else "Low")
-    return {"scores": valid, "average": avg, "agreement": agr}
+    return {"results": probabilities, "scores": valid, "average": avg, "agreement": agr}
+
+def _build_accuracy_table(styles):
+    story = [_section_heading("Model Accuracy Analysis", styles)]
+    story.append(Paragraph(
+        "Comparison of liver ensemble candidates using Accuracy across the validation set.",
+        styles["body"]
+    ))
+    story.append(Spacer(1, 3*mm))
+
+    rows = [[
+        Paragraph("<b>Model</b>", styles["body_bold_white"]),
+        Paragraph("<b>Accuracy</b>", styles["body_bold_white"]),
+    ]]
+
+    for entry in MODEL_BENCHMARKS:
+        rows.append([
+            Paragraph(entry["model"], styles["body"]),
+            Paragraph(f"{entry['accuracy']:.2f}", styles["body"]),
+        ])
+
+    table = Table(rows, colWidths=[120*mm, 40*mm], repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), _NAVY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _WHITE),
+        ("GRID", (0, 0), (-1, -1), 0.5, _MID_GREY),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 4*mm))
+    return story
 
 def generate_report(patient_data, prediction_result: dict) -> dict:
     def _get(key):
@@ -474,6 +581,16 @@ def generate_report(patient_data, prediction_result: dict) -> dict:
     model1_probs = prediction_result.get("model1_probabilities")
     model2_probs = prediction_result.get("model2_probabilities")
     active_probs = model2_probs if secondary_used else model1_probs
+
+    severity_assessment = None
+    if prediction_class == 3:
+        meld_score = calculate_meld(_get("bil"), _get("inr"), _get("crea"), _get("sodium"))
+        meld_result = classify_meld(meld_score)
+        child_pugh = calculate_child_pugh(_get("bil"), _get("alb"), _get("inr"), _get("ascites"), _get("encephalopathy"))
+        severity_assessment = {
+            "meld_score": meld_score, "meld": meld_result, "child_pugh": child_pugh,
+            "transplant_required": (meld_result["transplant_required"] if meld_result else False),
+        }
 
     report = {
         "report_metadata": {
@@ -497,20 +614,11 @@ def generate_report(patient_data, prediction_result: dict) -> dict:
             "model_results": active_probs, # For backward compatibility with simpler tables
             "active": _build_model_confidence(active_probs),
         },
-        "clinical_interpretation": CLINICAL_NOTES.get(disease, "Evaluation required."),
-        "severity_assessment": None,
+        "clinical_interpretation": _build_clinical_interpretation(disease, severity_assessment),
+        "severity_assessment": severity_assessment,
         "final_recommendation": recommendation,
         "medical_disclaimer": "AI-generated tool. Results must be reviewed by a specialist.",
     }
-
-    if prediction_class == 3:
-        meld_score = calculate_meld(_get("bil"), _get("inr"), _get("crea"), _get("sodium"))
-        meld_result = classify_meld(meld_score)
-        child_pugh = calculate_child_pugh(_get("bil"), _get("alb"), _get("inr"), _get("ascites"), _get("encephalopathy"))
-        report["severity_assessment"] = {
-            "meld_score": meld_score, "meld": meld_result, "child_pugh": child_pugh,
-            "transplant_required": (meld_result["transplant_required"] if meld_result else False),
-        }
 
     return report
 
@@ -526,7 +634,7 @@ from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
 
 # ── Plot image path ─────────────────────────────────────────────────
 _PLOTS_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "plots")
@@ -590,12 +698,30 @@ def _pdf_confidence_section(report, styles):
     story = [_section_heading("Model Confidence", styles)]
     active = report.get("model_confidence", {}).get("active", {})
     story.append(Paragraph(f"<b>Average Confidence:</b> {active.get('average', '—')}%  |  <b>Agreement:</b> {active.get('agreement', '—')}", styles["body"]))
-    scores = active.get("scores", {})
-    if scores:
-        rows = [[Paragraph("<b>AI Sub-Model</b>", styles["body_bold_white"]), Paragraph("<b>Confidence</b>", styles["body_bold_white"])]]
-        for name, pct in scores.items(): rows.append([Paragraph(name, styles["body"]), Paragraph(f"{pct}%", styles["body"])])
-        t = Table(rows, colWidths=[120*mm, 40*mm])
-        t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), _NAVY), ("TEXTCOLOR", (0, 0), (-1, 0), _WHITE), ("GRID", (0, 0), (-1, -1), 0.5, _MID_GREY), ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]))
+    results = active.get("results", {})
+    if results:
+        rows = [[
+            Paragraph("<b>AI Sub-Model</b>", styles["body_bold_white"]),
+            Paragraph("<b>Prediction</b>", styles["body_bold_white"]),
+            Paragraph("<b>Confidence</b>", styles["body_bold_white"]),
+        ]]
+
+        for name, item in sorted(results.items(), key=lambda entry: entry[1].get("confidence") if isinstance(entry[1], dict) and entry[1].get("confidence") is not None else -1, reverse=True):
+            rows.append([
+                Paragraph(name, styles["body"]),
+                Paragraph(str(item.get("prediction", "N/A")), styles["body"]),
+                Paragraph(f"{item.get('confidence', '—')}%" if item.get("confidence") is not None else "—", styles["body"]),
+            ])
+
+        t = Table(rows, colWidths=[95*mm, 55*mm, 30*mm])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), _NAVY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), _WHITE),
+            ("GRID", (0, 0), (-1, -1), 0.5, _MID_GREY),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
         story.append(t)
     story.append(Spacer(1, 4*mm))
     return story
@@ -649,19 +775,8 @@ def generate_pdf_from_report(report: dict) -> bytes:
     story.append(Spacer(1, 2*mm))
     story.append(Paragraph(f"<b>Recommendation:</b> {report.get('final_recommendation', '')}", styles["body"]))
 
-    # Model Performance Graph
     story.append(Spacer(1, 6*mm))
-    story.append(_section_heading("Model Performance Analysis", styles))
-    story.append(Paragraph(
-        "Accuracy, Macro Recall and Macro F1-Score comparison across all ensemble sub-models used in liver disease classification.",
-        styles["body"]
-    ))
-    story.append(Spacer(1, 3*mm))
-    if os.path.exists(_PLOT_LIVER):
-        img = Image(_PLOT_LIVER, width=170*mm, height=85*mm)
-        img.hAlign = "CENTER"
-        story.append(img)
-    story.append(Spacer(1, 5*mm))
+    story += _build_accuracy_table(styles)
 
     story.append(Spacer(1, 10*mm)); story.append(HRFlowable(width="100%", thickness=0.5, color=_MID_GREY)); story.append(Paragraph(f"<i>Disclaimer: {report.get('medical_disclaimer', '')}</i>", styles["disclaimer"]))
     doc.build(story); return buffer.getvalue()
