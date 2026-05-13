@@ -107,8 +107,8 @@ _STAGE1_LABELS = {
 }
 
 _STAGE2_LABELS = {
-    0: "Early Liver Disease",
-    1: "Healthy",
+    1: "Early Liver Disease",
+    2: "Healthy",
 }
 
 
@@ -260,7 +260,7 @@ def predict_liver_disease(input_data: dict) -> dict:
             valid2 = [v.get("confidence") for v in probs2.values() if isinstance(v, dict) and v.get("confidence") is not None]
             if valid2: result["confidence"] = round(sum(valid2) / len(valid2), 2)
 
-            if pred2 == 0:
+            if pred2 == 1:
                 result["primary_diagnosis"] = "Early Liver Disease"
                 result["recommendation"]    = (
                     "Lifestyle modification and close monitoring advised."
